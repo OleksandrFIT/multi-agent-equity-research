@@ -22,8 +22,14 @@
   (ненадійний на 8B, ламає відтворюваність).
 - Інтерфейс: **CLI зараз, web потім** (ядро не знає про інтерфейс).
 - Агрегація: **фіксовані ваги в конфізі**.
-- RAG: **Chroma** + LangChain (лише як retrieval-шар), локальні ембединги.
+- RAG: **Chroma** + LangChain (лише як retrieval-шар), локальні ембединги, **cross-encoder
+  реранкер у v1**.
 - Guardrails: рекомендований набір + grounding-чек.
+- **Пріоритет: коректність і релевантність даних > латенсі.** Можемо дозволити верифікаційні
+  кроки, крос-звірку джерел, реранкер і окремий шар валідації даних. Кеш — заради
+  відтворюваності, не швидкості.
+- Джерела: fundamentals — **`edgartools`** (XBRL-факти з SEC, першоджерело); ціни — **yfinance
+  + крос-звірка `stooq`** за шаром валідації.
 
 ## 2. Архітектурний принцип
 
@@ -121,8 +127,10 @@ class Agent(Protocol):
 додати нового агента.
 
 Агенти v1:
-- **Fundamentals** — метрики з EDGAR `companyfacts` (код) + ретрів risk-factors/MD&A (RAG).
-- **Technical** — індикатори з цінового ряду yfinance (RSI, MA, тренд) — чистий код + LLM-оцінка.
+- **Fundamentals** — метрики з EDGAR через `edgartools` (XBRL-факти, першоджерело) + ретрів
+  risk-factors/MD&A (RAG).
+- **Technical** — індикатори з цінового ряду (yfinance + stooq крос-звірка) — руками на
+  pandas/numpy (RSI, MA, тренд), прозоро й тестовано + LLM-оцінка.
 - **Sentiment** — ретрів свіжих новин (RAG) + оцінка тональності. **Live-only.**
 - **Risk** — волатильність, кореляції; діє як **гейт** на фінальний confidence.
 
@@ -170,9 +178,11 @@ class Agent(Protocol):
 **Ретрівери (по-типове):**
 - `news` → **MMR** (різноманіття, прибирає майже-дублікати), k~6.
 - `filing_section` → **ParentDocument** (parent-docstore = `LocalFileStore`, персистентний).
+- **Cross-encoder реранкер у v1** (relevance пріоритетна, латенсі не тисне): `CrossEncoderReranker`
+  (LangChain) поверх ретрівера — пересортовує кандидатів перед подачею в LLM.
 - Спільне: **метадата-фільтри будуються кодом** (ми знаємо `ticker` і `as_of`), НЕ
   `SelfQueryRetriever`. Фільтр **`date ≤ as_of` обовʼязковий** (чесний backtest).
-- Пізніше опційно: `EnsembleRetriever` (dense + BM25), reranker.
+- Пізніше опційно: `EnsembleRetriever` (dense + BM25).
 
 **Ingest:** окрема CLI-команда `ingest AAPL`; `analyze` перед аналізом дотягує свіжі новини
 (live). Дедуп по `content_hash`.
@@ -205,6 +215,25 @@ class Agent(Protocol):
 - **Стабільність/відтворюваність** — один вхід × N прогонів, `score` в межах ε (seed + low temp
   + кеш).
 
+### Golden set (деталізація)
+
+Не один артефакт, а рівні — різні шари перевіряються по-різному:
+
+1. **Metrics golden (ядро).** Заморожені сирі відповіді (EDGAR/edgartools, yfinance-історія) +
+   **вручну звірені** очікувані значення (P/E, ROE, RSI, DCF…) з задокументованою формулою і
+   посиланням на конкретний filing. Додатково **крос-звірка з незалежним 3-м джерелом**
+   (macrotrends/stockanalysis) — референсні значення фіксуються один раз у фікстурі. Код-метрики
+   — точний збіг (мікро-tolerance на float), DCF — з tolerance через припущення.
+2. **Ticker-покриття (краєві випадки).** Збиткова компанія (нема P/E), коротка історія (свіжий
+   IPO), нестандартний фіскальний рік (as-of вирівнювання), пропущений/пізній filing — плюс
+   happy-path large-cap.
+3. **Retrieval-relevance golden.** Пари `(ticker+питання → який документ має спливти)` для
+   вимірювання relevance ретрівера (**hit@k**) — прямо під пріоритет релевантності.
+
+Політика оновлення: фікстури — point-in-time знімки, **не автооновлюємо** (зламало б
+відтворюваність); нові дати — нові знімки. Герметичні тести читають заморожені JSON-фікстури з
+`eval/fixtures/` (без мережі).
+
 ## 11. Обробка помилок і краєві випадки
 
 - Недоступне джерело / тонко торгована акція → агент повертає `neutral, confidence=0` з поміткою,
@@ -216,8 +245,16 @@ class Agent(Protocol):
 ## 12. Стек
 
 Python 3.11+, `uv` (залежності), `typer` (CLI), `pydantic` + `pydantic-settings`, `ollama`
-(дефолт-модель `qwen2.5:7b`), `pandas`/`numpy` (індикатори), `feedparser` (RSS), `pytest`.
-RAG: `langchain-core`, `langchain-chroma`, `langchain-text-splitters`, `chromadb`.
+(дефолт-модель `qwen2.5:7b`), `pandas`/`numpy` (індикатори руками), `pytest`.
+- **Дані:** `edgartools` (fundamentals/XBRL + парсинг 10-K/10-Q секцій), `yfinance` + `stooq`
+  (через `pandas-datareader`) з крос-звіркою цін, `feedparser` (RSS).
+- **Валідація даних:** `pandera` (DataFrame-схеми) + Pydantic (API-відповіді). Грошові суми з
+  EDGAR — `Decimal`/int, не float.
+- **RAG:** `langchain-core`, `langchain-chroma`, `langchain-text-splitters`, `chromadb`,
+  `OllamaEmbeddings(nomic-embed-text)`; реранкер — `CrossEncoderReranker` +
+  `sentence-transformers` (напр. `BAAI/bge-reranker-base`, локально після першого завантаження).
+- **Тести:** заморожені JSON-фікстури в `eval/fixtures/` (герметично); за потреби `vcrpy` для
+  інтеграційних.
 
 ## 13. План по фазах
 
@@ -225,12 +262,14 @@ RAG: `langchain-core`, `langchain-chroma`, `langchain-text-splitters`, `chromadb
 
 - **Фаза 0 — Скелет:** git-репо (ізольований), `config.yaml`, `ollama_client`
   (schema+retry+cache+seed), Pydantic-моделі, `DataProvider` + кеш, порожній CLI.
-- **Фаза 1 — E2E ядро:** Fundamentals + Technical + Orchestrator + Aggregator (фіксовані ваги) +
-  звіт. Детерміновані тести метрик. → вже корисний інструмент.
+- **Фаза 1 — E2E ядро:** Fundamentals (edgartools) + Technical + Orchestrator + Aggregator
+  (фіксовані ваги) + звіт. Data layer з `pandera`-валідацією і yfinance↔stooq крос-звіркою цін.
+  Metrics golden (краєві тікери + ручна звірка з EDGAR + 3-тє джерело). → вже корисний інструмент.
 - **Фаза 2 — Повний набір агентів + RAG:** Risk + Sentiment; `rag/` (news, Chroma, ingest,
-  MMR-ретрівер); guardrails (делімітація, дисклеймер, grounding-чек, SEC UA/throttle).
-- **Фаза 2.5 — Filing-текст:** парсинг EDGAR (Item 1A Risk Factors, Item 7 MD&A) +
-  індексація як `filing_section` (ParentDocument).
+  MMR-ретрівер + **cross-encoder реранкер**); retrieval-relevance golden (hit@k); guardrails
+  (делімітація, дисклеймер, grounding-чек, SEC UA/throttle).
+- **Фаза 2.5 — Filing-текст:** секції 10-K/10-Q (Item 1A Risk Factors, Item 7 MD&A) через
+  `edgartools` + індексація як `filing_section` (ParentDocument).
 - **Фаза 3 — Eval harness:** backtest + reproducibility.
 - **Фаза 4 (пізніше) — web UI** (Streamlit/FastAPI поверх незмінного ядра); `verdict_memory`.
 
@@ -238,6 +277,11 @@ RAG: `langchain-core`, `langchain-chroma`, `langchain-text-splitters`, `chromadb
 
 - **Якість 8B** для фінансового reasoning обмежена — тому число завжди детерміноване, LLM лише
   інтерпретує. Backtest покаже реальну корисність.
-- **Парсинг 10-K/iXBRL** нетривіальний (Фаза 2.5) — може знадобитись уточнення обсягу секцій.
+- **Парсинг 10-K/iXBRL** — ризик знижено вибором `edgartools` (він парсить секції й XBRL), але
+  обсяг секцій (Item 1A/Item 7) варто уточнити на Фазі 2.5.
 - **Point-in-time fundamentals** через EDGAR за `filed_at` — треба акуратно реконструювати as-of.
 - **Відсутність історичних новин** робить sentiment невимірним у backtest (свідоме обмеження).
+- **3-тє референсне джерело** (macrotrends/stockanalysis) звіряється **вручну один раз** і
+  фіксується у фікстурі — не інтегрується в рантайм (лише для встановлення ground-truth).
+- **Реранкер** тягне модель `sentence-transformers` (розмір/перше завантаження) — прийнятно за
+  пріоритетом релевантності; офлайн після кешування.
