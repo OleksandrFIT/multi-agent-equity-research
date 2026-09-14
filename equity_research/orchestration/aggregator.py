@@ -34,22 +34,25 @@ class Aggregator:
         self.buy_th = buy_th
         self.sell_th = sell_th
 
-    def aggregate(self, ticker, as_of, opinions: list[AgentOpinion], skipped: list[str]) -> Verdict:
-        if not opinions:
+    def aggregate(self, ticker: str, as_of: date, opinions: list[AgentOpinion], skipped: list[str]) -> Verdict:
+        skipped = list(skipped)
+        weighted = [o for o in opinions if o.agent in self.config.weights]
+        skipped += [o.agent for o in opinions if o.agent not in self.config.weights]
+        if not weighted:
             return Verdict(
                 ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                 confidence=0.0, narrative="No agent produced an opinion; no data available.",
                 opinions=[], skipped_agents=skipped,
             )
-        available = [o.agent for o in opinions]
+        available = [o.agent for o in weighted]
         weights = self.config.normalized_weights(available)
-        score = sum(weights[o.agent] * o.score for o in opinions)
-        confidence = sum(weights[o.agent] * o.confidence for o in opinions)
+        score = sum(weights[o.agent] * o.score for o in weighted)
+        confidence = sum(weights[o.agent] * o.confidence for o in weighted)
         verdict = "buy" if score >= self.buy_th else "sell" if score <= self.sell_th else "hold"
-        narrative = self.client.generate_text(self._narrative_prompt(ticker, verdict, score, opinions))
+        narrative = self.client.generate_text(self._narrative_prompt(ticker, verdict, score, weighted))
         return Verdict(
             ticker=ticker, as_of=as_of, verdict=verdict, score=score,
-            confidence=confidence, narrative=narrative, opinions=opinions,
+            confidence=confidence, narrative=narrative, opinions=weighted,
             skipped_agents=skipped,
         )
 

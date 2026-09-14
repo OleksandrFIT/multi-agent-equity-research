@@ -57,3 +57,15 @@ def test_all_agents_skipped_returns_hold(tmp_path):
     assert v.score == 0.0
     assert v.confidence == 0.0
     assert v.opinions == []
+
+
+def test_unweighted_agent_treated_as_skipped(tmp_path):
+    ops = [
+        AgentOpinion(agent="fundamentals", stance="bullish", score=0.5, confidence=0.8, rationale="r"),
+        AgentOpinion(agent="mystery", stance="bearish", score=-1.0, confidence=1.0, rationale="r"),
+    ]
+    agg = Aggregator(_cfg(), _client(tmp_path))
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
+    assert "mystery" in v.skipped_agents
+    assert [o.agent for o in v.opinions] == ["fundamentals"]
+    assert v.verdict == "buy"  # only fundamentals counts, score 0.5 >= 0.2
