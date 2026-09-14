@@ -11,9 +11,9 @@ def fetch_yfinance(ticker: str) -> pd.DataFrame:
 
 
 def fetch_stooq(ticker: str) -> pd.DataFrame:
-    from pandas_datareader import data as pdr
+    from pandas_datareader.stooq import StooqDailyReader
 
-    df = pdr.DataReader(ticker, "stooq")
+    df = StooqDailyReader(symbols=ticker).read()
     if df.empty:
         return pd.DataFrame({"Close": []})
     df = df.sort_index()

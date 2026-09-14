@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Protocol
 
 
@@ -7,11 +8,35 @@ class FactsSource(Protocol):
     def company_facts(self, ticker: str) -> dict[str, float]: ...
 
 
-class EdgarProvider:
-    """Thin wrapper around edgartools. Normalizes XBRL facts to a flat dict.
+def _prior_revenue(financials) -> float:
+    """Prior fiscal-year revenue from the income statement, or 0.0 if unavailable.
 
-    Field paths depend on the installed edgartools version; verify in the
-    integration test (later task) and adjust the extraction here if needed.
+    Best-effort and defensive: any change in the edgartools dataframe shape
+    yields 0.0 (so revenue_growth degrades to NaN) rather than raising.
+    """
+    try:
+        df = financials.income_statement().to_dataframe()
+        period_cols = [c for c in df.columns if re.match(r"\d{4}-\d{2}-\d{2}", str(c))]
+        if len(period_cols) < 2:
+            return 0.0
+        rev = df[df["standard_concept"] == "Revenue"]
+        if rev.empty:
+            return 0.0
+        return float(rev.iloc[0][period_cols[1]])
+    except Exception:
+        return 0.0
+
+
+class EdgarProvider:
+    """Thin wrapper around edgartools, normalizing XBRL facts to a flat dict.
+
+    Uses the high-level Financials accessors (get_financial_metrics) rather than
+    parsing statement rows by tag, which is far more robust across filings.
+
+    Note: `total_debt` is populated from total liabilities (edgartools exposes no
+    dedicated long-term-debt accessor), so `debt_to_equity` is really a
+    liabilities-to-equity leverage proxy. Refine when a debt-specific concept is
+    wired in.
     """
 
     def __init__(self, user_agent: str):
@@ -21,20 +46,18 @@ class EdgarProvider:
         from edgar import Company, set_identity
 
         set_identity(self.user_agent)
-        company = Company(ticker)
-        financials = company.financials
-        income = financials.income_statement()
-        balance = financials.balance_sheet()
+        financials = Company(ticker).get_financials()
+        m = financials.get_financial_metrics()
 
-        def latest(frame, label: str) -> float:
-            row = frame.loc[label]
-            return float(row.iloc[0])
+        net_income = float(m["net_income"])
+        diluted_shares = float(m["shares_outstanding_diluted"])
+        eps_ttm = net_income / diluted_shares if diluted_shares else 0.0
 
         return {
-            "net_income": latest(income, "NetIncomeLoss"),
-            "revenue": latest(income, "Revenues"),
-            "revenue_prev": float(income.loc["Revenues"].iloc[1]),
-            "equity": latest(balance, "StockholdersEquity"),
-            "total_debt": latest(balance, "LongTermDebt"),
-            "eps_ttm": latest(income, "EarningsPerShareDiluted"),
+            "net_income": net_income,
+            "revenue": float(m["revenue"]),
+            "revenue_prev": _prior_revenue(financials),
+            "equity": float(m["stockholders_equity"]),
+            "total_debt": float(m["total_liabilities"]),
+            "eps_ttm": eps_ttm,
         }

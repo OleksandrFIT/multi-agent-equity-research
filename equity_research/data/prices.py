@@ -4,13 +4,26 @@ from datetime import date
 from typing import Callable
 
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 
 PriceFetcher = Callable[[str], pd.DataFrame]
 
 
 class PriceValidationError(ValueError):
     pass
+
+
+def _strip_tz(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize a timezone-aware DatetimeIndex to tz-naive.
+
+    yfinance returns a tz-aware index (e.g. America/New_York) while stooq
+    returns tz-naive; comparing a tz-aware index to a tz-naive Timestamp raises
+    TypeError, so we normalize every source to tz-naive at this boundary.
+    """
+    if df is not None and not df.empty and getattr(df.index, "tz", None) is not None:
+        df = df.copy()
+        df.index = df.index.tz_localize(None)
+    return df
 
 
 _SCHEMA = pa.DataFrameSchema(
@@ -27,7 +40,7 @@ class PriceProvider:
         self.tolerance = tolerance
 
     def history(self, ticker: str, as_of: date) -> tuple[pd.DataFrame, str | None]:
-        primary = self.fetch_yfinance(ticker)
+        primary = _strip_tz(self.fetch_yfinance(ticker))
         if primary is None or primary.empty:
             raise PriceValidationError(f"no price history for {ticker}")
         cutoff = pd.Timestamp(as_of)
@@ -37,7 +50,10 @@ class PriceProvider:
         _SCHEMA.validate(primary)
 
         note = None
-        secondary = self.fetch_stooq(ticker)
+        try:
+            secondary = _strip_tz(self.fetch_stooq(ticker))
+        except Exception:
+            secondary = None  # secondary cross-check is optional; never fatal to the primary
         if secondary is not None and not secondary.empty:
             secondary = secondary[secondary.index <= cutoff]
             if not secondary.empty:
