@@ -27,5 +27,5 @@ build-backend = "hatchling.build"
 packages = ["equity_research"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m 'not integration'"
 markers = ["integration: talks to network/Ollama; skipped by default"]
