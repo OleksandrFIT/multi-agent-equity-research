@@ -19,3 +19,11 @@ def test_prompt_contains_metrics_and_delimited_context():
 
 def test_schema_has_required_fields():
     assert set(OPINION_SCHEMA["required"]) == {"stance", "score", "confidence", "rationale", "key_facts"}
+
+
+def test_prompt_includes_data_quality_notes():
+    e = Evidence(ticker="AAPL", as_of=date(2026, 9, 15), metrics={"pe": 20.0},
+                 notes=["price discrepancy: yfinance 196.00 vs stooq 150.00 (> 10%)"])
+    prompt = build_judge_prompt("technical", e)
+    assert "Data-quality caveats" in prompt
+    assert "price discrepancy" in prompt

@@ -25,6 +25,10 @@ _ROLES = {
 def build_judge_prompt(agent: str, evidence: Evidence) -> str:
     role = _ROLES.get(agent, f"a {agent} analyst")
     metrics = "\n".join(f"- {k}: {v}" for k, v in evidence.metrics.items())
+    notes_block = ""
+    if evidence.notes:
+        joined = "\n".join(f"- {n}" for n in evidence.notes)
+        notes_block = f"\nData-quality caveats (factor these into your confidence):\n{joined}\n"
     context_block = ""
     if evidence.context:
         joined = "\n".join(evidence.context)
@@ -36,6 +40,7 @@ def build_judge_prompt(agent: str, evidence: Evidence) -> str:
     return (
         f"You are {role} for {evidence.ticker} as of {evidence.as_of}.\n"
         f"Metrics:\n{metrics}\n"
+        f"{notes_block}"
         f"{context_block}\n"
         "Return a JSON object with your stance (bullish/neutral/bearish), a score "
         "in [-1,1], a confidence in [0,1], a short rationale, and key_facts (a list "
