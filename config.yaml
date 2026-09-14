@@ -1,0 +1,11 @@
+model: qwen2.5:7b
+temperature: 0.0
+seed: 7
+cache_dir: .cache
+edgar_user_agent: "Equity Research dragan.sasha2002@gmail.com"
+ollama_host: http://localhost:11434
+weights:
+  fundamentals: 0.4
+  technical: 0.25
+  sentiment: 0.15
+  risk: 0.2

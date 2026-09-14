@@ -1,0 +1,20 @@
+{
+  "source_filing": "AAPL 10-K FY2023",
+  "filed_at": "2023-11-03",
+  "reference": "https://www.macrotrends.net/stocks/charts/AAPL/apple/",
+  "price": 196.0,
+  "facts": {
+    "net_income": 96995000000.0,
+    "revenue": 383285000000.0,
+    "revenue_prev": 394328000000.0,
+    "equity": 62146000000.0,
+    "total_debt": 111088000000.0,
+    "eps_ttm": 6.13
+  },
+  "expected": {
+    "pe": 31.973,
+    "roe": 1.5608,
+    "debt_to_equity": 1.7874,
+    "revenue_growth": -0.028
+  }
+}
