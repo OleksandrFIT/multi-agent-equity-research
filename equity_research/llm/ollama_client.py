@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Callable
 
@@ -16,6 +17,8 @@ class OllamaClient:
         chat_fn: Callable[..., dict],
         max_retries: int = 3,
     ):
+        if max_retries < 1:
+            raise ValueError("max_retries must be >= 1")
         self.model = model
         self.cache = cache
         self.seed = seed
@@ -24,7 +27,8 @@ class OllamaClient:
         self.max_retries = max_retries
 
     def _cache_key(self, prompt: str, fmt: str) -> str:
-        return f"{self.model}|{self.seed}|{self.temperature}|{fmt}|{prompt}"
+        payload = json.dumps([self.model, self.seed, self.temperature, fmt, prompt])
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def _call(self, prompt: str, fmt) -> str:
         options = {"temperature": self.temperature, "seed": self.seed}
