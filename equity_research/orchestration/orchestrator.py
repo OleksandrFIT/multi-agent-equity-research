@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from equity_research.agents.base import Agent, AgentOpinion
 from equity_research.orchestration.aggregator import Aggregator, Verdict
+
+logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
@@ -19,5 +22,6 @@ class Orchestrator:
                 evidence = agent.gather(ticker, as_of)
                 opinions.append(agent.judge(evidence))
             except Exception:
+                logger.exception("agent %s failed during run", agent.name)
                 skipped.append(agent.name)
         return self.aggregator.aggregate(ticker, as_of, opinions, skipped)
