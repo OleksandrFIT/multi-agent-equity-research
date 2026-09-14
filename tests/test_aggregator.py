@@ -48,3 +48,12 @@ def test_narrative_from_client(tmp_path):
     ops = [AgentOpinion(agent="technical", stance="neutral", score=0.0, confidence=0.5, rationale="r")]
     v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=["fundamentals", "sentiment", "risk"])
     assert v.narrative == "Narrative text."
+
+
+def test_all_agents_skipped_returns_hold(tmp_path):
+    agg = Aggregator(_cfg(), _client(tmp_path))
+    v = agg.aggregate("AAPL", date(2026, 9, 15), [], skipped=["fundamentals", "technical", "sentiment", "risk"])
+    assert v.verdict == "hold"
+    assert v.score == 0.0
+    assert v.confidence == 0.0
+    assert v.opinions == []

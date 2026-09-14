@@ -35,6 +35,12 @@ class Aggregator:
         self.sell_th = sell_th
 
     def aggregate(self, ticker, as_of, opinions: list[AgentOpinion], skipped: list[str]) -> Verdict:
+        if not opinions:
+            return Verdict(
+                ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
+                confidence=0.0, narrative="No agent produced an opinion; no data available.",
+                opinions=[], skipped_agents=skipped,
+            )
         available = [o.agent for o in opinions]
         weights = self.config.normalized_weights(available)
         score = sum(weights[o.agent] * o.score for o in opinions)
