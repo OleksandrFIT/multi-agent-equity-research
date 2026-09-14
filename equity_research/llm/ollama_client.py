@@ -4,6 +4,8 @@ import hashlib
 import json
 from typing import Callable
 
+import jsonschema
+
 from equity_research.llm.cache import DiskCache
 
 
@@ -49,11 +51,13 @@ class OllamaClient:
             for _ in range(self.max_retries):
                 raw = self._call(attempt_prompt, schema)
                 try:
-                    return json.loads(raw)
-                except json.JSONDecodeError as exc:
+                    parsed = json.loads(raw)
+                    jsonschema.validate(parsed, schema)
+                    return parsed
+                except (json.JSONDecodeError, jsonschema.ValidationError) as exc:
                     last_err = str(exc)
                     attempt_prompt = (
-                        f"{prompt}\n\nYour previous output was not valid JSON "
+                        f"{prompt}\n\nYour previous output was invalid "
                         f"({last_err}). Return ONLY valid JSON matching the schema."
                     )
             raise ValueError(f"invalid JSON after {self.max_retries} retries: {last_err}")
