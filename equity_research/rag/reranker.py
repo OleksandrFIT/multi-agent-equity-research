@@ -21,9 +21,9 @@ def default_scorer(model_name: str) -> Scorer | None:
     """
     try:
         from sentence_transformers import CrossEncoder
+        encoder = CrossEncoder(model_name)
     except Exception:
         return None
-    encoder = CrossEncoder(model_name)
 
     def score(query: str, texts: list[str]) -> list[float]:
         return [float(s) for s in encoder.predict([(query, t) for t in texts])]
