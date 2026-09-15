@@ -34,3 +34,17 @@ def test_news_not_found(monkeypatch):
     out = core.news("ZZZZ")
     assert out == {"query": "ZZZZ", "resolved": None, "corrected": False,
                    "items": [], "fetched": 0, "added": 0}
+
+
+from fastapi.testclient import TestClient
+
+import api.main as main
+
+
+def test_news_endpoint(monkeypatch):
+    monkeypatch.setattr(core, "news", lambda q: {"query": q, "resolved": "AAPL", "corrected": False,
+                                                 "items": [], "fetched": 0, "added": 0})
+    client = TestClient(main.app)
+    resp = client.post("/api/news", json={"query": "Apple"})
+    assert resp.status_code == 200
+    assert resp.json()["resolved"] == "AAPL"

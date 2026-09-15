@@ -83,6 +83,15 @@ def ingest(req: IngestRequest):
     return {"ticker": req.ticker.upper(), "ingested": n}
 
 
+class NewsRequest(BaseModel):
+    query: str
+
+
+@app.post("/api/news")
+def news(req: NewsRequest):
+    return core.news(req.query)
+
+
 @app.get("/api/backtest/config")
 def backtest_config():
     return core.backtest_config()
