@@ -14,6 +14,8 @@ DISCLAIMER = (
     "incomplete or wrong. Do your own due diligence."
 )
 
+DIRECTIONAL_AGENTS = {"fundamentals", "technical", "sentiment"}
+
 
 class Verdict(BaseModel):
     ticker: str
@@ -24,6 +26,7 @@ class Verdict(BaseModel):
     narrative: str
     opinions: list[AgentOpinion]
     disclaimer: str = DISCLAIMER
+    caution: str | None = None
     skipped_agents: list[str] = []
 
 
@@ -36,24 +39,37 @@ class Aggregator:
 
     def aggregate(self, ticker: str, as_of: date, opinions: list[AgentOpinion], skipped: list[str]) -> Verdict:
         skipped = list(skipped)
-        weighted = [o for o in opinions if o.agent in self.config.weights]
-        skipped += [o.agent for o in opinions if o.agent not in self.config.weights]
-        if not weighted:
+        risk_op = next((o for o in opinions if o.agent == "risk"), None)
+        directional = [o for o in opinions if o.agent in DIRECTIONAL_AGENTS and o.agent in self.config.weights]
+        directional_names = {o.agent for o in directional}
+        skipped += [o.agent for o in opinions if o.agent != "risk" and o.agent not in directional_names]
+
+        if not directional:
             return Verdict(
                 ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                 confidence=0.0, narrative="No agent produced an opinion; no data available.",
-                opinions=[], skipped_agents=skipped,
+                opinions=[o for o in [risk_op] if o], skipped_agents=skipped,
             )
-        available = [o.agent for o in weighted]
-        weights = self.config.normalized_weights(available)
-        score = sum(weights[o.agent] * o.score for o in weighted)
-        confidence = sum(weights[o.agent] * o.confidence for o in weighted)
+
+        weights = self.config.normalized_weights([o.agent for o in directional])
+        score = sum(weights[o.agent] * o.score for o in directional)
+        base_conf = sum(weights[o.agent] * o.confidence for o in directional)
         verdict = "buy" if score >= self.buy_th else "sell" if score <= self.sell_th else "hold"
-        narrative = self.client.generate_text(self._narrative_prompt(ticker, verdict, score, weighted))
+
+        confidence = base_conf
+        caution = None
+        if risk_op is not None:
+            rl = risk_op.score
+            confidence = max(0.0, min(1.0, base_conf * (1 - self.config.risk["gate_strength"] * rl)))
+            if rl >= self.config.risk["caution_threshold"]:
+                caution = f"Elevated risk (level {rl:.0%}): {risk_op.rationale}"
+
+        narrative = self.client.generate_text(self._narrative_prompt(ticker, verdict, score, directional))
+        opinions_out = directional + ([risk_op] if risk_op is not None else [])
         return Verdict(
             ticker=ticker, as_of=as_of, verdict=verdict, score=score,
-            confidence=confidence, narrative=narrative, opinions=weighted,
-            skipped_agents=skipped,
+            confidence=confidence, narrative=narrative, opinions=opinions_out,
+            caution=caution, skipped_agents=skipped,
         )
 
     def _narrative_prompt(self, ticker, verdict, score, opinions) -> str:

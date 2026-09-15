@@ -69,3 +69,36 @@ def test_unweighted_agent_treated_as_skipped(tmp_path):
     assert "mystery" in v.skipped_agents
     assert [o.agent for o in v.opinions] == ["fundamentals"]
     assert v.verdict == "buy"  # only fundamentals counts, score 0.5 >= 0.2
+
+
+def test_risk_gates_confidence_and_is_not_directional(tmp_path):
+    ops = [
+        AgentOpinion(agent="fundamentals", stance="bullish", score=0.8, confidence=1.0, rationale="r"),
+        AgentOpinion(agent="risk", stance="neutral", score=0.8, confidence=0.8, rationale="risky"),
+    ]
+    agg = Aggregator(_cfg(), _client(tmp_path))
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=["technical", "sentiment"])
+    assert v.verdict == "buy"
+    assert abs(v.score - 0.8) < 1e-9
+    # base confidence 1.0 gated: 1.0 * (1 - 0.5*0.8) = 0.6
+    assert abs(v.confidence - 0.6) < 1e-9
+    assert any(o.agent == "risk" for o in v.opinions)
+
+
+def test_high_risk_adds_caution(tmp_path):
+    ops = [
+        AgentOpinion(agent="technical", stance="bullish", score=0.5, confidence=0.8, rationale="r"),
+        AgentOpinion(agent="risk", stance="neutral", score=0.9, confidence=0.9, rationale="very risky"),
+    ]
+    agg = Aggregator(_cfg(), _client(tmp_path))
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=["fundamentals", "sentiment"])
+    assert v.caution is not None
+    assert "risk" in v.caution.lower()
+
+
+def test_no_risk_agent_no_gate(tmp_path):
+    ops = [AgentOpinion(agent="technical", stance="bullish", score=0.5, confidence=0.8, rationale="r")]
+    agg = Aggregator(_cfg(), _client(tmp_path))
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=["fundamentals", "sentiment", "risk"])
+    assert abs(v.confidence - 0.8) < 1e-9  # unchanged
+    assert v.caution is None
