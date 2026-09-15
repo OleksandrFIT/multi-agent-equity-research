@@ -10,6 +10,13 @@ def fetch_yfinance(ticker: str) -> pd.DataFrame:
     return df[["Close"]].astype(float) if not df.empty else pd.DataFrame({"Close": []})
 
 
+def fetch_yfinance_long(ticker: str) -> pd.DataFrame:
+    import yfinance as yf
+
+    df = yf.Ticker(ticker).history(period="6y", auto_adjust=True)
+    return df[["Close"]].astype(float) if not df.empty else pd.DataFrame({"Close": []})
+
+
 def fetch_stooq(ticker: str) -> pd.DataFrame:
     from pandas_datareader.stooq import StooqDailyReader
 

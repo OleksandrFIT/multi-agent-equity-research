@@ -28,3 +28,8 @@ net:
   data_attempts: 3
   data_base_delay: 0.5
   ollama_timeout: 180
+backtest:
+  universe: [AAPL, MSFT, KO, JPM, XOM]
+  dates: ["2024-03-15", "2024-06-14", "2024-09-13", "2024-12-13"]
+  horizons: [21, 63]
+  report_path: backtest_report.md
