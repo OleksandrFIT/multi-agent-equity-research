@@ -17,6 +17,17 @@ OPINION_SCHEMA = {
     "required": ["stance", "score", "confidence", "rationale", "key_facts"],
 }
 
+_RUBRIC = (
+    "Scoring rubric: use score in [-1,1] where the sign is direction and the magnitude is "
+    "conviction — strong ±0.7..1.0, moderate ±0.3..0.6, weak/neutral -0.2..0.2. Your score "
+    "must agree with your stance: bullish => positive, bearish => negative, neutral => near 0. "
+    "Set confidence lower when key data is missing."
+)
+_EXAMPLE = (
+    'Example output: {"stance": "bearish", "score": -0.4, "confidence": 0.6, '
+    '"rationale": "Valuation stretched versus modest growth.", "key_facts": ["P/E 40x", "growth 3%"]}'
+)
+
 _ROLES = {
     "fundamentals": "a fundamentals analyst judging valuation and financial health",
     "technical": "a technical analyst judging price trend and momentum",
@@ -96,5 +107,7 @@ def build_judge_prompt(agent: str, evidence: Evidence) -> str:
         "Return a JSON object with your stance (bullish/neutral/bearish), a score "
         "in [-1,1], a confidence in [0,1], a short rationale, and key_facts (a list "
         "of the specific figures you relied on). Base every fact only on the data above.\n"
+        f"{_RUBRIC}\n"
+        f"{_EXAMPLE}\n"
         f"JSON schema: {json.dumps(OPINION_SCHEMA)}"
     )

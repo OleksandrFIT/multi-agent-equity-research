@@ -36,6 +36,14 @@ def test_death_cross_when_sma50_below_sma200():
     assert "death cross" in prompt.lower()
 
 
+def test_prompt_has_scoring_rubric_and_example():
+    e = Evidence(ticker="AAPL", as_of=date(2026, 9, 15), metrics={"pe": 20.0})
+    prompt = build_judge_prompt("fundamentals", e)
+    assert "score must agree with your stance" in prompt.lower()
+    assert "0.7" in prompt  # rubric anchor present
+    assert '"stance"' in prompt and "example" in prompt.lower()  # one-shot example present
+
+
 def test_schema_has_required_fields():
     assert set(OPINION_SCHEMA["required"]) == {"stance", "score", "confidence", "rationale", "key_facts"}
 
