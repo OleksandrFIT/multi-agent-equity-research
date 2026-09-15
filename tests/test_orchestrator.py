@@ -43,6 +43,14 @@ def test_runs_all_agents(tmp_path):
     assert v.skipped_agents == []
 
 
+def test_failed_agent_reason_captured(tmp_path):
+    agents = [StubAgent("fundamentals", 0.5), StubAgent("technical", 0.0, fail=True)]
+    orch = Orchestrator(agents=agents, aggregator=_agg(tmp_path))
+    v = orch.run("AAPL", as_of=date(2026, 9, 15))
+    assert "technical" in v.skip_reasons
+    assert "data unavailable" in v.skip_reasons["technical"]
+
+
 def test_failed_agent_is_skipped(tmp_path):
     agents = [StubAgent("fundamentals", 0.5), StubAgent("technical", 0.0, fail=True)]
     orch = Orchestrator(agents=agents, aggregator=_agg(tmp_path))

@@ -28,6 +28,7 @@ class Verdict(BaseModel):
     disclaimer: str = DISCLAIMER
     caution: str | None = None
     skipped_agents: list[str] = []
+    skip_reasons: dict[str, str] = {}
 
 
 class Aggregator:
@@ -37,8 +38,10 @@ class Aggregator:
         self.buy_th = buy_th
         self.sell_th = sell_th
 
-    def aggregate(self, ticker: str, as_of: date, opinions: list[AgentOpinion], skipped: list[str]) -> Verdict:
+    def aggregate(self, ticker: str, as_of: date, opinions: list[AgentOpinion], skipped: list[str],
+                  skip_reasons: dict[str, str] | None = None) -> Verdict:
         skipped = list(skipped)
+        skip_reasons = dict(skip_reasons or {})
         risk_op = next((o for o in opinions if o.agent == "risk"), None)
         directional = [o for o in opinions if o.agent in DIRECTIONAL_AGENTS and o.agent in self.config.weights]
         directional_names = {o.agent for o in directional}
@@ -49,6 +52,7 @@ class Aggregator:
                 ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                 confidence=0.0, narrative="No agent produced an opinion; no data available.",
                 opinions=[o for o in [risk_op] if o], skipped_agents=skipped,
+                skip_reasons=skip_reasons,
             )
 
         weights = self.config.normalized_weights([o.agent for o in directional])
@@ -69,7 +73,7 @@ class Aggregator:
         return Verdict(
             ticker=ticker, as_of=as_of, verdict=verdict, score=score,
             confidence=confidence, narrative=narrative, opinions=opinions_out,
-            caution=caution, skipped_agents=skipped,
+            caution=caution, skipped_agents=skipped, skip_reasons=skip_reasons,
         )
 
     def _narrative_prompt(self, ticker, verdict, score, opinions) -> str:

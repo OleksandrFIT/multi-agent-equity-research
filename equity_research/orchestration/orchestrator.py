@@ -17,11 +17,13 @@ class Orchestrator:
     def run(self, ticker: str, as_of: date) -> Verdict:
         opinions: list[AgentOpinion] = []
         skipped: list[str] = []
+        skip_reasons: dict[str, str] = {}
         for agent in self.agents:
             try:
                 evidence = agent.gather(ticker, as_of)
                 opinions.append(agent.judge(evidence))
-            except Exception:
+            except Exception as exc:
                 logger.exception("agent %s failed during run", agent.name)
                 skipped.append(agent.name)
-        return self.aggregator.aggregate(ticker, as_of, opinions, skipped)
+                skip_reasons[agent.name] = f"{type(exc).__name__}: {exc}"
+        return self.aggregator.aggregate(ticker, as_of, opinions, skipped, skip_reasons)

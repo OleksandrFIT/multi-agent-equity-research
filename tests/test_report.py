@@ -30,6 +30,14 @@ def test_json_roundtrips():
     assert data["opinions"][0]["agent"] == "fundamentals"
 
 
+def test_markdown_shows_skip_reason():
+    v = _verdict().model_copy(update={"skipped_agents": ["technical"],
+                                      "skip_reasons": {"technical": "TimeoutError: call timed out after 20s"}})
+    md = render_markdown(v)
+    assert "technical" in md
+    assert "timed out" in md.lower()
+
+
 def test_markdown_shows_caution_when_present():
     v = _verdict().model_copy(update={"caution": "Elevated risk (level 90%): very volatile"})
     md = render_markdown(v)
