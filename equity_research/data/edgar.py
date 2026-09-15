@@ -60,7 +60,10 @@ class EdgarProvider:
 
         set_identity(self.user_agent)
         company = Company(ticker)
-        filings = company.get_filings(form=["10-K", "10-Q"])
+        # Annual (10-K) only: a 10-Q reports a single quarter, which would distort
+        # annual-scale metrics (P/E, revenue growth). The latest 10-K on or before
+        # as_of is the conventional point-in-time fundamental snapshot.
+        filings = company.get_filings(form=["10-K"])
         filing = select_filing_asof(list(filings), as_of)
         financials = filing.obj().financials
         m = financials.get_financial_metrics()
