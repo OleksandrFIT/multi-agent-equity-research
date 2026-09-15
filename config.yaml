@@ -9,3 +9,11 @@ weights:
   technical: 0.25
   sentiment: 0.15
   risk: 0.2
+benchmark: SPY
+risk:
+  gate_strength: 0.5
+  caution_threshold: 0.6
+  vol_low: 0.15
+  vol_high: 0.60
+  beta_high: 1.5
+  drawdown_high: 0.40

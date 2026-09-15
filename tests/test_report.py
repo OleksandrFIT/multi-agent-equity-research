@@ -28,3 +28,14 @@ def test_json_roundtrips():
     data = json.loads(render_json(_verdict()))
     assert data["verdict"] == "buy"
     assert data["opinions"][0]["agent"] == "fundamentals"
+
+
+def test_markdown_shows_caution_when_present():
+    v = _verdict().model_copy(update={"caution": "Elevated risk (level 90%): very volatile"})
+    md = render_markdown(v)
+    assert "Elevated risk" in md
+
+
+def test_markdown_omits_caution_when_absent():
+    md = render_markdown(_verdict())  # _verdict() has no caution
+    assert "Elevated risk" not in md
