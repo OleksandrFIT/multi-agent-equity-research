@@ -31,3 +31,22 @@ def test_quotes_caches_by_day(monkeypatch):
     assert calls["n"] == 1
     assert a == b == [{"ticker": "AAPL", "price": 1.0, "change_pct": 0.5},
                       {"ticker": "MSFT", "price": 1.0, "change_pct": 0.5}]
+
+
+from fastapi.testclient import TestClient
+
+import api.main as main
+
+
+def test_quotes_endpoint(monkeypatch):
+    monkeypatch.setattr(core, "quotes", lambda tickers: [{"ticker": tickers[0], "price": 1.0, "change_pct": 2.0}])
+    client = TestClient(main.app)
+    resp = client.get("/api/quotes?tickers=aapl,msft")
+    assert resp.status_code == 200
+    assert resp.json()[0]["ticker"] == "AAPL"
+
+
+def test_resolve_endpoint(monkeypatch):
+    monkeypatch.setattr(core, "resolve", lambda q: {"input": q, "resolved": "AAPL", "corrected": True})
+    client = TestClient(main.app)
+    assert client.get("/api/resolve?query=APPL").json()["resolved"] == "AAPL"
