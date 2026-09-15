@@ -11,8 +11,9 @@ from equity_research.agents.sentiment import SentimentAgent
 from equity_research.agents.technical import TechnicalAgent
 from equity_research.config import Config
 from equity_research.data.adapters import fetch_stooq, fetch_yfinance, fetch_yfinance_long
+from equity_research.data.company import company_name
 from equity_research.data.edgar import EdgarProvider
-from equity_research.data.prices import PriceProvider
+from equity_research.data.prices import PriceProvider, PriceValidationError
 from equity_research.eval.backtest import run_backtest
 from equity_research.eval.report import render_backtest_json, render_backtest_markdown
 from equity_research.llm.cache import DiskCache
@@ -47,6 +48,27 @@ def _build_filing_pieces(cfg, vs):
     return retriever, ingest_fn
 
 
+def _unknown_ticker_verdict(prices, ticker: str, as_of) -> "Verdict | None":
+    """Return an unknown-ticker Verdict if there is no price history, else None.
+
+    A ticker with no price data (e.g. a typo like APPL) cannot be valued; we
+    short-circuit before running any agent so we don't surface generic,
+    misleading news for a symbol that does not exist.
+    """
+    try:
+        prices.history(ticker, as_of)
+    except PriceValidationError:
+        return Verdict(
+            ticker=ticker, as_of=as_of, verdict="hold", score=0.0, confidence=0.0,
+            status="unknown_ticker",
+            narrative=f"No price data for {ticker}; it may be an unknown or delisted ticker.",
+            opinions=[],
+        )
+    except Exception:
+        return None  # transient/other error: let agents run and degrade to insufficient_data
+    return None
+
+
 def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Verdict:
     cfg = Config.load(cfg_path)
     from ollama import Client
@@ -58,13 +80,14 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
                            fetch_stooq=resilient(fetch_stooq, cfg.net))
     edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
     edgar.company_facts = resilient(edgar.company_facts, cfg.net)
-    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"], net=cfg.net)
     news_store = NewsStore(vs)
     retriever = NewsRetriever(news_store, scorer=default_scorer(cfg.rag["rerank_model"]))
     sentiment = SentimentAgent(
         retriever=retriever,
         ingest_fn=lambda t: ingest_news(resilient(fetch_news, cfg.net), news_store, t),
         client=client, k=cfg.rag["retrieve_k"], candidate_k=cfg.rag["candidate_k"],
+        name_fn=company_name,
     )
     filing_retriever, filing_ingest = _build_filing_pieces(cfg, vs)
     agents = [
@@ -75,6 +98,9 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
         sentiment,
         RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
     ]
+    unknown = _unknown_ticker_verdict(prices, ticker, as_of)
+    if unknown is not None:
+        return unknown
     orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, client))
     return orch.run(ticker, as_of, on_event=on_event)
 
@@ -88,7 +114,7 @@ def analyze(ticker: str, config: str = "config.yaml"):
 @app.command()
 def ingest(ticker: str, config: str = "config.yaml"):
     cfg = Config.load(config)
-    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"], net=cfg.net)
     n = ingest_news(resilient(fetch_news, cfg.net), NewsStore(vs), ticker.upper())
     sections = resilient(fetch_filing_sections, cfg.net)(ticker.upper(), date.today(), cfg.edgar_user_agent)
     FilingStore(vs, ParentStore(cfg.rag["parent_dir"]),
@@ -101,7 +127,7 @@ def build_backtest_verdict(cfg: Config, client):
                            fetch_stooq=resilient(fetch_stooq, cfg.net))
     edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
     edgar.company_facts = resilient(edgar.company_facts, cfg.net)
-    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"], net=cfg.net)
     filing_retriever, filing_ingest = _build_filing_pieces(cfg, vs)
 
     def run_verdict(ticker, as_of):

@@ -70,6 +70,10 @@ def test_analyze_ticker_wraps_fetchers_resiliently(monkeypatch):
     cli_module.analyze_ticker("AAPL", date(2026, 9, 15), "config.yaml")
 
     tech = next(a for a in captured["agents"] if a.name == "technical")
+    # the unknown-ticker preflight inside analyze_ticker already exercised the
+    # wrapped fetcher (and its retry) once; reset the counter to isolate the
+    # wiring check below to a single fresh retry cycle
+    calls["n"] = 0
     df = tech.prices.fetch_yfinance("AAPL")  # the wired (resilient) fetcher
     assert df.iloc[-1]["Close"] == 3.0
     assert calls["n"] == 2  # retried once after the first failure
@@ -138,3 +142,43 @@ def test_backtest_builder_excludes_sentiment(monkeypatch):
     run_verdict("AAPL", date(2024, 3, 15))
     assert "sentiment" not in captured["agents"]
     assert {"fundamentals", "technical", "risk"} == set(captured["agents"])
+
+
+def test_unknown_ticker_verdict_short_circuits():
+    from datetime import date
+
+    from equity_research.cli import _unknown_ticker_verdict
+    from equity_research.data.prices import PriceValidationError
+
+    class FakePrices:
+        def history(self, ticker, as_of):
+            raise PriceValidationError(f"no price history for {ticker}")
+
+    v = _unknown_ticker_verdict(FakePrices(), "APPL", date(2026, 9, 15))
+    assert v is not None
+    assert v.status == "unknown_ticker"
+    assert v.opinions == []
+
+
+def test_known_ticker_preflight_returns_none():
+    from datetime import date
+
+    from equity_research.cli import _unknown_ticker_verdict
+
+    class FakePrices:
+        def history(self, ticker, as_of):
+            return ("df", None)  # any non-raising result
+
+    assert _unknown_ticker_verdict(FakePrices(), "AAPL", date(2026, 9, 15)) is None
+
+
+def test_transient_price_error_falls_through_to_none():
+    from datetime import date
+
+    from equity_research.cli import _unknown_ticker_verdict
+
+    class FakePrices:
+        def history(self, ticker, as_of):
+            raise RuntimeError("boom")
+
+    assert _unknown_ticker_verdict(FakePrices(), "AAPL", date(2026, 9, 15)) is None

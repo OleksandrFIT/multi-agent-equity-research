@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Callable
 
@@ -11,20 +12,46 @@ from equity_research.llm.ollama_client import OllamaClient
 _QUERY = "recent news sentiment, outlook, risks and catalysts"
 
 
+def _filter_relevant(texts: list[str], ticker: str, name: str | None) -> list[str]:
+    """Keep only news whose words include the ticker or the company name's first token.
+
+    Whole-word matching (not substring) so short tickers like "A"/"F" don't match
+    every headline. When the name is unavailable we keep everything rather than
+    risk dropping valid news.
+    """
+    if not name or not name.split():
+        return texts
+    needles = {ticker.lower(), name.split()[0].lower()}
+    out = []
+    for t in texts:
+        words = set(re.findall(r"[a-z0-9]+", t.lower()))
+        if needles & words:
+            out.append(t)
+    return out
+
+
 class SentimentAgent:
     name = "sentiment"
 
     def __init__(self, retriever, ingest_fn: Callable[[str], object], client: OllamaClient,
-                 k: int = 6, candidate_k: int = 20):
+                 k: int = 6, candidate_k: int = 20, name_fn=None):
         self.retriever = retriever
         self.ingest_fn = ingest_fn
         self.client = client
         self.k = k
         self.candidate_k = candidate_k
+        self.name_fn = name_fn
 
     def gather(self, ticker: str, as_of: date) -> Evidence:
         self.ingest_fn(ticker)  # pull fresh news into the store first (live)
         texts = self.retriever.retrieve(ticker, _QUERY, as_of, self.k, self.candidate_k)
+        name = None
+        if self.name_fn is not None:
+            try:
+                name = self.name_fn(ticker)
+            except Exception:
+                name = None
+        texts = _filter_relevant(texts, ticker, name)
         notes = [] if texts else ["no news retrieved"]
         return Evidence(ticker=ticker, as_of=as_of, metrics={}, context=texts, notes=notes)
 

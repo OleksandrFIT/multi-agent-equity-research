@@ -44,3 +44,47 @@ def test_search_builds_ticker_and_date_filter():
         {"date_int": {"$lte": 20260915}},
     ]}
     assert k == 6
+
+
+def test_chroma_store_retries_embed_ops():
+    from equity_research.rag.chroma_store import ChromaVectorStore
+
+    class FlakyDB:
+        def __init__(self):
+            self.calls = 0
+
+        def max_marginal_relevance_search(self, query, k, filter):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("connection reset by peer")
+
+            class Doc:
+                page_content = "ok"
+                metadata = {"id": "1"}
+
+            return [Doc()]
+
+    store = ChromaVectorStore.__new__(ChromaVectorStore)  # bypass real Chroma init
+    store._db = FlakyDB()
+    store._net = {"data_timeout": 5, "data_attempts": 3, "data_base_delay": 0}
+    out = store.mmr_search("q", {"doc_type": {"$eq": "news"}}, k=1)
+    assert out == [("ok", {"id": "1"})]
+    assert store._db.calls == 2  # retried once
+
+
+def test_chroma_store_no_net_calls_once():
+    from equity_research.rag.chroma_store import ChromaVectorStore
+
+    class DB:
+        def __init__(self):
+            self.calls = 0
+
+        def get(self, ids):
+            self.calls += 1
+            return {"ids": ["a"]}
+
+    store = ChromaVectorStore.__new__(ChromaVectorStore)
+    store._db = DB()
+    store._net = None
+    assert store.existing_ids(["a"]) == {"a"}
+    assert store._db.calls == 1

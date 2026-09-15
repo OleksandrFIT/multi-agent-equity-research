@@ -53,3 +53,33 @@ def test_no_news_degrades_without_calling_llm(tmp_path):
     assert op.stance == "neutral"
     assert op.confidence == 0.0
     assert calls["n"] == 0  # LLM not called when there is no news
+
+
+def test_sentiment_filters_news_by_company_relevance():
+    from datetime import date
+
+    from equity_research.agents.sentiment import SentimentAgent
+
+    class FakeRetriever:
+        def retrieve(self, ticker, query, as_of, k, candidate_k):
+            return ["Apple unveils new iPhone", "Generic market wrap: indexes edge lower"]
+
+    agent = SentimentAgent(retriever=FakeRetriever(), ingest_fn=lambda t: None,
+                           client=None, name_fn=lambda t: "Apple Inc")
+    ev = agent.gather("AAPL", date(2026, 9, 15))
+    assert ev.context == ["Apple unveils new iPhone"]  # generic wrap dropped
+
+
+def test_sentiment_keeps_all_when_no_company_name():
+    from datetime import date
+
+    from equity_research.agents.sentiment import SentimentAgent
+
+    class FakeRetriever:
+        def retrieve(self, ticker, query, as_of, k, candidate_k):
+            return ["Generic market wrap", "Another headline"]
+
+    agent = SentimentAgent(retriever=FakeRetriever(), ingest_fn=lambda t: None,
+                           client=None, name_fn=lambda t: None)
+    ev = agent.gather("AAPL", date(2026, 9, 15))
+    assert ev.context == ["Generic market wrap", "Another headline"]  # no name -> no filtering

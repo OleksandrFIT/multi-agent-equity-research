@@ -35,7 +35,7 @@ def ingest_ticker(ticker: str) -> int:
     from equity_research.util.resilient import resilient
 
     cfg = Config.load(CONFIG_PATH)
-    store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"]))
+    store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"], net=cfg.net))
     return ingest_news(resilient(fetch_news, cfg.net), store, ticker.upper())
 
 
