@@ -21,7 +21,11 @@ from equity_research.orchestration.aggregator import Aggregator, Verdict
 from equity_research.orchestration.orchestrator import Orchestrator
 from equity_research.rag.adapters import fetch_news
 from equity_research.rag.chroma_store import ChromaVectorStore
+from equity_research.rag.filing_retrieve import FilingRetriever
+from equity_research.rag.filing_store import FilingStore
+from equity_research.rag.filings import fetch_filing_sections
 from equity_research.rag.ingest import ingest_news
+from equity_research.rag.parent_store import ParentStore
 from equity_research.rag.reranker import default_scorer
 from equity_research.rag.retrieve import NewsRetriever
 from equity_research.rag.store import NewsStore
@@ -29,6 +33,18 @@ from equity_research.reporting.report import render_markdown
 from equity_research.util.resilient import resilient
 
 app = typer.Typer(help="Multi-agent equity research")
+
+
+def _build_filing_pieces(cfg, vs):
+    filing_store = FilingStore(vs, ParentStore(cfg.rag["parent_dir"]),
+                               parent_max_chars=cfg.rag["filing_parent_max_chars"])
+    retriever = FilingRetriever(filing_store, scorer=default_scorer(cfg.rag["rerank_model"]))
+
+    def ingest_fn(ticker):
+        sections = resilient(fetch_filing_sections, cfg.net)(ticker, date.today(), cfg.edgar_user_agent)
+        filing_store.upsert(sections)
+
+    return retriever, ingest_fn
 
 
 def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Verdict:
@@ -42,16 +58,19 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
                            fetch_stooq=resilient(fetch_stooq, cfg.net))
     edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
     edgar.company_facts = resilient(edgar.company_facts, cfg.net)
-    news_store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"],
-                                             embed_model=cfg.rag["embed_model"]))
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    news_store = NewsStore(vs)
     retriever = NewsRetriever(news_store, scorer=default_scorer(cfg.rag["rerank_model"]))
     sentiment = SentimentAgent(
         retriever=retriever,
         ingest_fn=lambda t: ingest_news(resilient(fetch_news, cfg.net), news_store, t),
         client=client, k=cfg.rag["retrieve_k"], candidate_k=cfg.rag["candidate_k"],
     )
+    filing_retriever, filing_ingest = _build_filing_pieces(cfg, vs)
     agents = [
-        FundamentalsAgent(facts_source=edgar, prices=prices, client=client),
+        FundamentalsAgent(facts_source=edgar, prices=prices, client=client,
+                          filing_retriever=filing_retriever, filing_ingest_fn=filing_ingest,
+                          k=cfg.rag["filing_retrieve_k"], candidate_k=cfg.rag["filing_candidate_k"]),
         TechnicalAgent(prices=prices, client=client),
         sentiment,
         RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
@@ -69,9 +88,12 @@ def analyze(ticker: str, config: str = "config.yaml"):
 @app.command()
 def ingest(ticker: str, config: str = "config.yaml"):
     cfg = Config.load(config)
-    store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"]))
-    n = ingest_news(resilient(fetch_news, cfg.net), store, ticker.upper())
-    typer.echo(f"Ingested {n} news items for {ticker.upper()}")
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    n = ingest_news(resilient(fetch_news, cfg.net), NewsStore(vs), ticker.upper())
+    sections = resilient(fetch_filing_sections, cfg.net)(ticker.upper(), date.today(), cfg.edgar_user_agent)
+    FilingStore(vs, ParentStore(cfg.rag["parent_dir"]),
+                parent_max_chars=cfg.rag["filing_parent_max_chars"]).upsert(sections)
+    typer.echo(f"Ingested {n} news items and {len(sections)} filing sections for {ticker.upper()}")
 
 
 def build_backtest_verdict(cfg: Config, client):
@@ -79,10 +101,14 @@ def build_backtest_verdict(cfg: Config, client):
                            fetch_stooq=resilient(fetch_stooq, cfg.net))
     edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
     edgar.company_facts = resilient(edgar.company_facts, cfg.net)
+    vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
+    filing_retriever, filing_ingest = _build_filing_pieces(cfg, vs)
 
     def run_verdict(ticker, as_of):
         agents = [
-            FundamentalsAgent(facts_source=edgar, prices=prices, client=client),
+            FundamentalsAgent(facts_source=edgar, prices=prices, client=client,
+                              filing_retriever=filing_retriever, filing_ingest_fn=filing_ingest,
+                              k=cfg.rag["filing_retrieve_k"], candidate_k=cfg.rag["filing_candidate_k"]),
             TechnicalAgent(prices=prices, client=client),
             RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
         ]

@@ -44,6 +44,7 @@ class NewsStore:
 
     def search(self, query: str, ticker: str, as_of: date, k: int) -> list[tuple[str, dict]]:
         where = {"$and": [
+            {"doc_type": {"$eq": "news"}},
             {"ticker": {"$eq": ticker}},
             {"date_int": {"$lte": int(as_of.strftime("%Y%m%d"))}},
         ]}

@@ -29,6 +29,10 @@ class Config(BaseModel):
         "retrieve_k": 6,
         "candidate_k": 20,
         "rerank_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        "filing_retrieve_k": 3,
+        "filing_candidate_k": 12,
+        "parent_dir": ".parents",
+        "filing_parent_max_chars": 4000,
     })
     net: dict = Field(default_factory=lambda: {
         "data_timeout": 20,

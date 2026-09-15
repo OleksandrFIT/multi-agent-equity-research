@@ -38,5 +38,9 @@ def test_search_builds_ticker_and_date_filter():
     store.upsert([_chunk("h1")])
     store.search("news about apple", ticker="AAPL", as_of=date(2026, 9, 15), k=6)
     query, where, k = fake.last_query
-    assert where == {"$and": [{"ticker": {"$eq": "AAPL"}}, {"date_int": {"$lte": 20260915}}]}
+    assert where == {"$and": [
+        {"doc_type": {"$eq": "news"}},
+        {"ticker": {"$eq": "AAPL"}},
+        {"date_int": {"$lte": 20260915}},
+    ]}
     assert k == 6

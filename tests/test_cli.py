@@ -94,6 +94,25 @@ def test_analyze_ticker_includes_sentiment_agent(monkeypatch):
     assert {"fundamentals", "technical", "risk"} <= set(names)
 
 
+def test_analyze_ticker_fundamentals_has_filing_retriever(monkeypatch):
+    captured = {}
+
+    class FakeOrch:
+        def __init__(self, agents, aggregator):
+            captured["agents"] = agents
+
+        def run(self, ticker, as_of, on_event=None):
+            from equity_research.orchestration.aggregator import Verdict
+            return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
+                           confidence=0.0, narrative="n", opinions=[], skipped_agents=[])
+
+    monkeypatch.setattr(cli_module, "Orchestrator", FakeOrch)
+    cli_module.analyze_ticker("AAPL", date(2026, 9, 15), "config.yaml")
+    fund = next(a for a in captured["agents"] if a.name == "fundamentals")
+    assert fund.filing_retriever is not None
+    assert fund.filing_ingest_fn is not None
+
+
 def test_backtest_builder_excludes_sentiment(monkeypatch):
     import equity_research.cli as cli_module
     from equity_research.config import Config
