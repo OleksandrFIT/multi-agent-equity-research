@@ -23,3 +23,15 @@ def test_edge_cases():
                 assert math.isnan(m[key]), f"{case['name']}:{key}"
             else:
                 assert math.isclose(m[key], expected, rel_tol=1e-3), f"{case['name']}:{key}"
+
+
+def test_metrics_golden_matches_hand_verified():
+    records = json.loads((FIX / "golden" / "metrics_golden.json").read_text())
+    assert len(records) == 5
+    for rec in records:
+        metrics = compute_fundamental_metrics(rec["facts"], price=rec["price"])
+        for key, expected in rec["expected"].items():
+            if expected == "nan":
+                assert math.isnan(metrics[key]), f"{rec['ticker']}:{key}"
+            else:
+                assert math.isclose(metrics[key], expected, rel_tol=1e-3), f"{rec['ticker']}:{key}"

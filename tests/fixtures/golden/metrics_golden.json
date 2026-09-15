@@ -1,0 +1,107 @@
+[
+  {
+    "ticker": "AAPL",
+    "source_filing": "AAPL 10-K",
+    "filed_at": "2023-11-03",
+    "reference": "https://www.macrotrends.net/stocks/charts/AAPL/apple/",
+    "price": 210.48,
+    "facts": {
+      "net_income": 96995000000.0,
+      "revenue": 383285000000.0,
+      "revenue_prev": 394328000000.0,
+      "equity": 62146000000.0,
+      "total_debt": 290437000000.0,
+      "eps_ttm": 6.1341
+    },
+    "expected": {
+      "pe": 34.3134,
+      "roe": 1.5608,
+      "debt_to_equity": 4.6735,
+      "revenue_growth": -0.028
+    }
+  },
+  {
+    "ticker": "MSFT",
+    "source_filing": "MSFT 10-K",
+    "filed_at": "2023-07-27",
+    "reference": "https://www.macrotrends.net/stocks/charts/MSFT/microsoft/",
+    "price": 434.9,
+    "facts": {
+      "net_income": 72361000000.0,
+      "revenue": 211915000000.0,
+      "revenue_prev": 198270000000.0,
+      "equity": 206223000000.0,
+      "total_debt": 205753000000.0,
+      "eps_ttm": 9.6843
+    },
+    "expected": {
+      "pe": 44.9078,
+      "roe": 0.3509,
+      "debt_to_equity": 0.9977,
+      "revenue_growth": 0.0688
+    }
+  },
+  {
+    "ticker": "NVDA",
+    "source_filing": "NVDA 10-K",
+    "filed_at": "2024-02-21",
+    "reference": "https://www.macrotrends.net/stocks/charts/NVDA/nvidia/",
+    "price": 131.52,
+    "facts": {
+      "net_income": 29760000000.0,
+      "revenue": 60922000000.0,
+      "revenue_prev": 26974000000.0,
+      "equity": 42978000000.0,
+      "total_debt": 22750000000.0,
+      "eps_ttm": 11.9326
+    },
+    "expected": {
+      "pe": 11.0219,
+      "roe": 0.6924,
+      "debt_to_equity": 0.5293,
+      "revenue_growth": 1.2585
+    }
+  },
+  {
+    "ticker": "META",
+    "source_filing": "META 10-K",
+    "filed_at": "2024-02-02",
+    "reference": "https://www.macrotrends.net/stocks/charts/META/meta-platforms/",
+    "price": 500.8,
+    "facts": {
+      "net_income": 39098000000.0,
+      "revenue": 134902000000.0,
+      "revenue_prev": 116609000000.0,
+      "equity": 153168000000.0,
+      "total_debt": 76455000000.0,
+      "eps_ttm": 14.8718
+    },
+    "expected": {
+      "pe": 33.6744,
+      "roe": 0.2553,
+      "debt_to_equity": 0.4992,
+      "revenue_growth": 0.1569
+    }
+  },
+  {
+    "ticker": "JNJ",
+    "source_filing": "JNJ 10-K",
+    "filed_at": "2024-02-16",
+    "reference": "https://www.macrotrends.net/stocks/charts/JNJ/johnson-johnson/",
+    "price": 136.84,
+    "facts": {
+      "net_income": 35153000000.0,
+      "revenue": 85159000000.0,
+      "revenue_prev": 79990000000.0,
+      "equity": 68774000000.0,
+      "total_debt": 98784000000.0,
+      "eps_ttm": 13.7295
+    },
+    "expected": {
+      "pe": 9.9669,
+      "roe": 0.5111,
+      "debt_to_equity": 1.4364,
+      "revenue_growth": 0.0646
+    }
+  }
+]
