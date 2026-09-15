@@ -26,6 +26,11 @@ def health():
     return core.health()
 
 
+@app.get("/api/prices")
+def prices(ticker: str, period: str = "6M"):
+    return core.prices(ticker, period)
+
+
 @app.get("/api/analyze")
 def analyze(ticker: str):
     q: "queue.Queue" = queue.Queue()
