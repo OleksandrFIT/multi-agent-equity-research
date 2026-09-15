@@ -34,6 +34,15 @@ def test_normalize_weights_over_available_agents():
     assert abs(norm["fundamentals"] - 0.4 / 0.65) < 1e-9
 
 
+def test_config_has_net_defaults():
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".cache",
+                 edgar_user_agent="x x@x.com",
+                 weights={"fundamentals": 0.4, "technical": 0.25, "sentiment": 0.15, "risk": 0.2})
+    assert cfg.net["data_timeout"] == 20
+    assert cfg.net["data_attempts"] == 3
+    assert cfg.net["ollama_timeout"] == 180
+
+
 def test_config_has_rag_defaults():
     cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".cache",
                  edgar_user_agent="x x@x.com",

@@ -23,7 +23,11 @@ def render_markdown(verdict: Verdict) -> str:
             lines.append(f"  - _grounding dropped {len(o.dropped_facts)} unsupported fact(s)_")
     if verdict.skipped_agents:
         lines.append("")
-        lines.append(f"_Skipped agents: {', '.join(verdict.skipped_agents)}_")
+        rendered = [
+            f"{a} ({verdict.skip_reasons[a]})" if a in verdict.skip_reasons else a
+            for a in verdict.skipped_agents
+        ]
+        lines.append(f"_Skipped agents: {', '.join(rendered)}_")
     if verdict.caution:
         lines += ["", f"**Risk caution:** {verdict.caution}"]
     lines += ["", "---", f"> {verdict.disclaimer}"]

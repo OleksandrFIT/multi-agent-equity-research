@@ -30,6 +30,12 @@ class Config(BaseModel):
         "candidate_k": 20,
         "rerank_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
     })
+    net: dict = Field(default_factory=lambda: {
+        "data_timeout": 20,
+        "data_attempts": 3,
+        "data_base_delay": 0.5,
+        "ollama_timeout": 180,
+    })
 
     @classmethod
     def load(cls, path: str | Path = "config.yaml") -> "Config":
