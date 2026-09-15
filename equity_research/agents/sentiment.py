@@ -29,4 +29,7 @@ class SentimentAgent:
         return Evidence(ticker=ticker, as_of=as_of, metrics={}, context=texts, notes=notes)
 
     def judge(self, evidence: Evidence) -> AgentOpinion:
+        if not evidence.context:
+            return AgentOpinion(agent=self.name, stance="neutral", score=0.0, confidence=0.0,
+                                rationale="no news available", key_facts=[])
         return judge_evidence(self.name, evidence, self.client)

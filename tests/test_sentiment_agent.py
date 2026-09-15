@@ -38,9 +38,18 @@ def test_judge_returns_sentiment_opinion(tmp_path):
     assert "Apple beats estimates" in op.key_facts  # grounded against context
 
 
-def test_no_news_degrades(tmp_path):
-    agent = SentimentAgent(retriever=FakeRetriever([]), ingest_fn=lambda t: None,
-                           client=_client(tmp_path, "not json"))
+def test_no_news_degrades_without_calling_llm(tmp_path):
+    calls = {"n": 0}
+
+    def chat(**k):
+        calls["n"] += 1
+        return {"message": {"content": '{"stance":"bullish","score":0.9,"confidence":0.9,"rationale":"r","key_facts":[]}'}}
+
+    from equity_research.llm.ollama_client import OllamaClient
+    from equity_research.llm.cache import DiskCache
+    client = OllamaClient(model="m", cache=DiskCache(tmp_path), seed=1, temperature=0.0, chat_fn=chat)
+    agent = SentimentAgent(retriever=FakeRetriever([]), ingest_fn=lambda t: None, client=client)
     op = agent.judge(agent.gather("AAPL", as_of=date(2026, 9, 15)))
     assert op.stance == "neutral"
     assert op.confidence == 0.0
+    assert calls["n"] == 0  # LLM not called when there is no news
