@@ -12,7 +12,7 @@ from equity_research.agents.technical import TechnicalAgent
 from equity_research.config import Config
 from equity_research.data.adapters import fetch_stooq, fetch_yfinance, fetch_yfinance_long
 from equity_research.data.edgar import EdgarProvider
-from equity_research.data.prices import PriceProvider
+from equity_research.data.prices import PriceProvider, PriceValidationError
 from equity_research.eval.backtest import run_backtest
 from equity_research.eval.report import render_backtest_json, render_backtest_markdown
 from equity_research.llm.cache import DiskCache
@@ -47,6 +47,25 @@ def _build_filing_pieces(cfg, vs):
     return retriever, ingest_fn
 
 
+def _unknown_ticker_verdict(prices, ticker: str, as_of) -> "Verdict | None":
+    """Return an unknown-ticker Verdict if there is no price history, else None.
+
+    A ticker with no price data (e.g. a typo like APPL) cannot be valued; we
+    short-circuit before running any agent so we don't surface generic,
+    misleading news for a symbol that does not exist.
+    """
+    try:
+        prices.history(ticker, as_of)
+        return None
+    except PriceValidationError:
+        return Verdict(
+            ticker=ticker, as_of=as_of, verdict="hold", score=0.0, confidence=0.0,
+            status="unknown_ticker",
+            narrative=f"No price data for {ticker}; it may be an unknown or delisted ticker.",
+            opinions=[],
+        )
+
+
 def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Verdict:
     cfg = Config.load(cfg_path)
     from ollama import Client
@@ -75,6 +94,9 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
         sentiment,
         RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
     ]
+    unknown = _unknown_ticker_verdict(prices, ticker, as_of)
+    if unknown is not None:
+        return unknown
     orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, client))
     return orch.run(ticker, as_of, on_event=on_event)
 
