@@ -15,12 +15,14 @@ DISCLAIMER = (
 )
 
 DIRECTIONAL_AGENTS = {"fundamentals", "technical", "sentiment"}
+PRICE_DIRECTIONAL = {"fundamentals", "technical"}
 
 
 class Verdict(BaseModel):
     ticker: str
     as_of: date
     verdict: Literal["buy", "hold", "sell"]
+    status: Literal["ok", "unknown_ticker", "insufficient_data"] = "ok"
     score: float
     confidence: float
     narrative: str
@@ -47,12 +49,13 @@ class Aggregator:
         directional_names = {o.agent for o in directional}
         skipped += [o.agent for o in opinions if o.agent != "risk" and o.agent not in directional_names]
 
-        if not directional:
+        price_directional = [o for o in directional if o.agent in PRICE_DIRECTIONAL]
+        if not price_directional:
             return Verdict(
                 ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
-                confidence=0.0, narrative="No agent produced an opinion; no data available.",
-                opinions=[o for o in [risk_op] if o], skipped_agents=skipped,
-                skip_reasons=skip_reasons,
+                confidence=0.0, status="insufficient_data",
+                narrative="Insufficient data: no price-based analysis available for this ticker.",
+                opinions=opinions, skipped_agents=skipped, skip_reasons=skip_reasons,
             )
 
         weights = self.config.normalized_weights([o.agent for o in directional])

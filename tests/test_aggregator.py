@@ -102,3 +102,48 @@ def test_no_risk_agent_no_gate(tmp_path):
     v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=["fundamentals", "sentiment", "risk"])
     assert abs(v.confidence - 0.8) < 1e-9  # unchanged
     assert v.caution is None
+
+
+def test_insufficient_data_when_no_price_directional_agent():
+    from datetime import date
+
+    from equity_research.agents.base import AgentOpinion
+    from equity_research.config import Config
+    from equity_research.orchestration.aggregator import Aggregator
+
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".c",
+                 edgar_user_agent="x", weights={"fundamentals": 1, "technical": 1, "sentiment": 1})
+
+    class FakeClient:
+        def generate_text(self, prompt):  # narrative not used on this path
+            return "n"
+
+    agg = Aggregator(cfg, FakeClient())
+    # only sentiment produced an opinion; fundamentals+technical skipped
+    sentiment = AgentOpinion(agent="sentiment", stance="neutral", score=0.0, confidence=0.8, rationale="r")
+    verdict = agg.aggregate("AAPL", date(2026, 9, 15), [sentiment],
+                            skipped=["fundamentals", "technical"], skip_reasons={})
+    assert verdict.status == "insufficient_data"
+    assert verdict.confidence == 0.0
+    assert verdict.opinions == [sentiment]  # what ran is still shown
+
+
+def test_status_ok_when_price_directional_present():
+    from datetime import date
+
+    from equity_research.agents.base import AgentOpinion
+    from equity_research.config import Config
+    from equity_research.orchestration.aggregator import Aggregator
+
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".c",
+                 edgar_user_agent="x", weights={"fundamentals": 1, "technical": 1, "sentiment": 1})
+
+    class FakeClient:
+        def generate_text(self, prompt):
+            return "narrative"
+
+    agg = Aggregator(cfg, FakeClient())
+    tech = AgentOpinion(agent="technical", stance="bullish", score=0.6, confidence=0.8, rationale="r")
+    verdict = agg.aggregate("AAPL", date(2026, 9, 15), [tech], skipped=[], skip_reasons={})
+    assert verdict.status == "ok"
+    assert verdict.verdict == "buy"
