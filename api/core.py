@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 CONFIG_PATH = "config.yaml"
+_PERIOD_DAYS = {"1M": 21, "3M": 63, "6M": 126, "1Y": 252}
 
 
 def health() -> dict:
@@ -68,3 +69,27 @@ def run_backtest_records(on_progress):
     records = run_backtest(cfg.backtest["universe"], dates, cfg.backtest["horizons"],
                            run_verdict_progress, _full_close)
     return records, cfg.backtest["horizons"]
+
+
+def _fetch_long_close(ticker: str):
+    import pandas as pd
+
+    from equity_research.config import Config
+    from equity_research.data.adapters import fetch_yfinance_long
+    from equity_research.data.prices import _strip_tz
+    from equity_research.util.resilient import resilient
+
+    cfg = Config.load(CONFIG_PATH)
+    df = resilient(fetch_yfinance_long, cfg.net)(ticker)
+    df = _strip_tz(df)
+    return df["Close"] if not df.empty else pd.Series(dtype=float)
+
+
+def prices(ticker: str, period: str) -> dict:
+    from equity_research.analytics.series import build_price_series
+
+    period = period if period in _PERIOD_DAYS else "6M"
+    ticker = ticker.upper()
+    close = _fetch_long_close(ticker)
+    series = build_price_series(close, _PERIOD_DAYS[period])
+    return {"ticker": ticker, "period": period, **series}
