@@ -67,3 +67,38 @@ def test_on_event_called_per_agent(tmp_path):
     assert events[0]["agent"] == "fundamentals" and "opinion" in events[0]
     assert events[1]["agent"] == "technical" and events[1]["skipped"] is True
     assert "data unavailable" in events[1]["reason"]
+
+
+def test_orchestrator_surfaces_agent_metrics_and_drops_nan():
+    import math
+    from datetime import date
+
+    from equity_research.agents.base import AgentOpinion
+    from equity_research.data.models import Evidence
+    from equity_research.orchestration.aggregator import Aggregator, Verdict
+    from equity_research.orchestration.orchestrator import Orchestrator
+
+    class StubAgent:
+        name = "fundamentals"
+        def gather(self, ticker, as_of):
+            return Evidence(ticker=ticker, as_of=as_of,
+                            metrics={"pe": 20.0, "revenue_growth": math.nan})
+        def judge(self, evidence):
+            return AgentOpinion(agent="fundamentals", stance="bullish", score=0.5,
+                                confidence=0.8, rationale="r")
+
+    captured = {}
+    def on_event(ev):
+        if "opinion" in ev:
+            captured[ev["agent"]] = ev["opinion"]
+
+    class StubAgg:
+        def aggregate(self, ticker, as_of, opinions, skipped, skip_reasons):
+            return Verdict(ticker=ticker, as_of=as_of, verdict="buy", score=0.5,
+                           confidence=0.8, narrative="n", opinions=opinions)
+
+    orch = Orchestrator([StubAgent()], StubAgg())
+    verdict = orch.run("AAPL", date(2026, 9, 15), on_event=on_event)
+    op = captured["fundamentals"]
+    assert op.metrics == {"pe": 20.0}
+    assert verdict.opinions[0].metrics == {"pe": 20.0}

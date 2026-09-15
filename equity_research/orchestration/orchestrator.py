@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import date
 
 from equity_research.agents.base import Agent, AgentOpinion
@@ -22,6 +23,10 @@ class Orchestrator:
             try:
                 evidence = agent.gather(ticker, as_of)
                 opinion = agent.judge(evidence)
+                opinion.metrics = {
+                    k: float(v) for k, v in evidence.metrics.items()
+                    if isinstance(v, (int, float)) and math.isfinite(v)
+                }
                 opinions.append(opinion)
                 if on_event is not None:
                     on_event({"agent": agent.name, "opinion": opinion})
