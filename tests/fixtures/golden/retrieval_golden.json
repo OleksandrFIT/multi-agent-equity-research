@@ -1,0 +1,30 @@
+{
+  "documents": [
+    {"id": "aapl-earnings", "ticker": "AAPL", "text": "Apple reported record quarterly revenue driven by strong iPhone and services growth."},
+    {"id": "aapl-legal", "ticker": "AAPL", "text": "Apple faces an EU antitrust investigation over App Store fees and developer terms."},
+    {"id": "aapl-supply", "ticker": "AAPL", "text": "Apple warned of supply chain constraints affecting Mac and iPad production this quarter."},
+    {"id": "aapl-guidance", "ticker": "AAPL", "text": "Apple guided next-quarter revenue slightly below expectations citing a stronger dollar."},
+    {"id": "msft-earnings", "ticker": "MSFT", "text": "Microsoft cloud revenue rose as Azure growth accelerated on AI demand."},
+    {"id": "msft-legal", "ticker": "MSFT", "text": "Microsoft's Activision acquisition drew regulatory scrutiny from the FTC and CMA."},
+    {"id": "msft-supply", "ticker": "MSFT", "text": "Microsoft cited data-center capacity limits constraining Azure AI service availability."},
+    {"id": "msft-guidance", "ticker": "MSFT", "text": "Microsoft raised full-year guidance on strong Copilot and cloud bookings."},
+    {"id": "ko-earnings", "ticker": "KO", "text": "Coca-Cola posted higher organic revenue on pricing and resilient global demand."},
+    {"id": "ko-legal", "ticker": "KO", "text": "Coca-Cola faces a US tax dispute with the IRS over transfer pricing of billions."},
+    {"id": "ko-supply", "ticker": "KO", "text": "Coca-Cola noted higher input costs for aluminum and sweeteners pressuring margins."},
+    {"id": "ko-guidance", "ticker": "KO", "text": "Coca-Cola reaffirmed full-year organic revenue growth guidance despite currency headwinds."}
+  ],
+  "cases": [
+    {"ticker": "AAPL", "question": "How were Apple's revenue and earnings?", "expected": ["aapl-earnings"]},
+    {"ticker": "AAPL", "question": "Any antitrust or regulatory problems?", "expected": ["aapl-legal"]},
+    {"ticker": "AAPL", "question": "Supply chain or production issues?", "expected": ["aapl-supply"]},
+    {"ticker": "AAPL", "question": "What is the forward guidance or outlook?", "expected": ["aapl-guidance"]},
+    {"ticker": "MSFT", "question": "How did cloud and Azure revenue perform?", "expected": ["msft-earnings"]},
+    {"ticker": "MSFT", "question": "Any regulatory or acquisition scrutiny?", "expected": ["msft-legal"]},
+    {"ticker": "MSFT", "question": "Capacity or supply constraints?", "expected": ["msft-supply"]},
+    {"ticker": "MSFT", "question": "Did they change guidance or outlook?", "expected": ["msft-guidance"]},
+    {"ticker": "KO", "question": "How was revenue and pricing?", "expected": ["ko-earnings"]},
+    {"ticker": "KO", "question": "Any tax or legal disputes?", "expected": ["ko-legal"]},
+    {"ticker": "KO", "question": "Input cost or margin pressure?", "expected": ["ko-supply"]},
+    {"ticker": "KO", "question": "What is the full-year guidance?", "expected": ["ko-guidance"]}
+  ]
+}
