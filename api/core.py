@@ -157,3 +157,30 @@ def resolve(query: str) -> dict:
         return None if tok in ("", "NONE") else tok
 
     return resolve_ticker(query, llm_guess, price_ok)
+
+
+def news(query: str) -> dict:
+    from equity_research.config import Config
+    from equity_research.rag.adapters import fetch_news
+    from equity_research.rag.chroma_store import ChromaVectorStore
+    from equity_research.rag.chunking import chunk_news
+    from equity_research.rag.store import NewsStore
+    from equity_research.util.resilient import resilient
+
+    r = resolve(query)
+    if not r["resolved"]:
+        return {"query": query, "resolved": None, "corrected": False,
+                "items": [], "fetched": 0, "added": 0}
+    ticker = r["resolved"]
+    cfg = Config.load(CONFIG_PATH)
+    store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"],
+                                        embed_model=cfg.rag["embed_model"], net=cfg.net))
+    items = resilient(fetch_news, cfg.net)(ticker)
+    chunks = [c for it in items for c in chunk_news(it)]
+    added = store.upsert(chunks) if chunks else 0
+    return {
+        "query": query, "resolved": ticker, "corrected": r["corrected"],
+        "items": [{"title": it.title, "url": it.url, "source": it.source,
+                   "published_at": str(it.published_at)} for it in items],
+        "fetched": len(items), "added": added,
+    }
