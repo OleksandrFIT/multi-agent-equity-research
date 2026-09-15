@@ -22,7 +22,7 @@ class FundamentalsAgent:
     def gather(self, ticker: str, as_of: date) -> Evidence:
         hist, note = self.prices.history(ticker, as_of)
         price = float(hist["Close"].iloc[-1])
-        facts = self.facts_source.company_facts(ticker)
+        facts = self.facts_source.company_facts(ticker, as_of)
         metrics = compute_fundamental_metrics(facts, price=price)
         notes = [note] if note else []
         return Evidence(ticker=ticker, as_of=as_of, metrics=metrics, notes=notes)

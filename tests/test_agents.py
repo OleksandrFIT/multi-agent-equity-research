@@ -37,7 +37,7 @@ def test_fundamentals_agent_uses_facts_and_price(tmp_path):
     facts = {"net_income": 100.0, "revenue": 1000.0, "revenue_prev": 900.0,
              "equity": 500.0, "total_debt": 250.0, "eps_ttm": 5.0}
     agent = FundamentalsAgent(
-        facts_source=type("F", (), {"company_facts": staticmethod(lambda t: facts)})(),
+        facts_source=type("F", (), {"company_facts": staticmethod(lambda t, as_of: facts)})(),
         prices=provider, client=_client(tmp_path),
     )
     ev = agent.gather("AAPL", as_of=date(2025, 9, 1))
