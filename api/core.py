@@ -93,3 +93,67 @@ def prices(ticker: str, period: str) -> dict:
     close = _fetch_long_close(ticker)
     series = build_price_series(close, _PERIOD_DAYS[period])
     return {"ticker": ticker, "period": period, **series}
+
+
+_QUOTES_CACHE: dict = {}  # {iso_date: {ticker: {price, change_pct} | None}}
+
+
+def quotes(tickers: list[str]) -> list[dict]:
+    from datetime import date
+
+    from equity_research.data import adapters
+
+    key = date.today().isoformat()
+    cache = _QUOTES_CACHE.setdefault(key, {})
+    missing = [t for t in tickers if t not in cache]
+    if missing:
+        try:
+            got = adapters.fetch_quotes(missing)
+        except Exception:
+            got = {}
+        for t in missing:
+            cache[t] = got.get(t)  # store None for failures so we don't refetch all day
+    return [{"ticker": t, **cache[t]} for t in tickers if cache.get(t)]
+
+
+_RESOLVE_PROMPT = (
+    "The user typed '{q}' as a US stock ticker or company. "
+    "Reply with ONLY the single most likely valid US stock ticker symbol in uppercase, "
+    "or NONE if you cannot tell. No other words."
+)
+
+
+def resolve(query: str) -> dict:
+    from datetime import date
+
+    from equity_research.config import Config
+    from equity_research.data.adapters import fetch_stooq, fetch_yfinance
+    from equity_research.data.prices import PriceProvider
+    from equity_research.data.resolve import resolve_ticker
+    from equity_research.llm.cache import DiskCache
+    from equity_research.llm.ollama_client import OllamaClient
+    from equity_research.util.resilient import resilient
+
+    cfg = Config.load(CONFIG_PATH)
+    prices = PriceProvider(fetch_yfinance=resilient(fetch_yfinance, cfg.net),
+                           fetch_stooq=resilient(fetch_stooq, cfg.net))
+
+    def price_ok(t: str) -> bool:
+        try:
+            prices.history(t, date.today())
+            return True
+        except Exception:
+            return False
+
+    from ollama import Client
+
+    chat_fn = Client(host=cfg.ollama_host, timeout=cfg.net["ollama_timeout"]).chat
+    client = OllamaClient(model=cfg.model, cache=DiskCache(cfg.cache_dir),
+                          seed=cfg.seed, temperature=cfg.temperature, chat_fn=chat_fn)
+
+    def llm_guess(q: str) -> str | None:
+        raw = client.generate_text(_RESOLVE_PROMPT.format(q=q)).strip().upper()
+        tok = raw.split()[0] if raw else ""
+        return None if tok in ("", "NONE") else tok
+
+    return resolve_ticker(query, llm_guess, price_ok)

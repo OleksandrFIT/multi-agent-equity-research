@@ -31,6 +31,17 @@ def prices(ticker: str, period: str = "6M"):
     return core.prices(ticker, period)
 
 
+@app.get("/api/quotes")
+def quotes(tickers: str):
+    syms = [t.strip().upper() for t in tickers.split(",") if t.strip()]
+    return core.quotes(syms)
+
+
+@app.get("/api/resolve")
+def resolve(query: str):
+    return core.resolve(query)
+
+
 @app.get("/api/analyze")
 def analyze(ticker: str):
     q: "queue.Queue" = queue.Queue()
