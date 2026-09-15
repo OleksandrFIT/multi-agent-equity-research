@@ -31,7 +31,7 @@ def test_analyze_ticker_includes_risk_agent(monkeypatch):
         def __init__(self, agents, aggregator):
             captured["agents"] = agents
 
-        def run(self, ticker, as_of):
+        def run(self, ticker, as_of, on_event=None):
             return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                            confidence=0.0, narrative="n", opinions=[], skipped_agents=[])
 
@@ -51,7 +51,7 @@ def test_analyze_ticker_wraps_fetchers_resiliently(monkeypatch):
         def __init__(self, agents, aggregator):
             captured["agents"] = agents
 
-        def run(self, ticker, as_of):
+        def run(self, ticker, as_of, on_event=None):
             from equity_research.orchestration.aggregator import Verdict
             return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                            confidence=0.0, narrative="n", opinions=[], skipped_agents=[])
@@ -82,7 +82,7 @@ def test_analyze_ticker_includes_sentiment_agent(monkeypatch):
         def __init__(self, agents, aggregator):
             captured["agents"] = agents
 
-        def run(self, ticker, as_of):
+        def run(self, ticker, as_of, on_event=None):
             from equity_research.orchestration.aggregator import Verdict
             return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
                            confidence=0.0, narrative="n", opinions=[], skipped_agents=[])

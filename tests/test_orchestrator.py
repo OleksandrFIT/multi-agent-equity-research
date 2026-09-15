@@ -57,3 +57,13 @@ def test_failed_agent_is_skipped(tmp_path):
     v = orch.run("AAPL", as_of=date(2026, 9, 15))
     assert [o.agent for o in v.opinions] == ["fundamentals"]
     assert v.skipped_agents == ["technical"]
+
+
+def test_on_event_called_per_agent(tmp_path):
+    agents = [StubAgent("fundamentals", 0.5), StubAgent("technical", 0.0, fail=True)]
+    orch = Orchestrator(agents=agents, aggregator=_agg(tmp_path))
+    events = []
+    orch.run("AAPL", as_of=date(2026, 9, 15), on_event=events.append)
+    assert events[0]["agent"] == "fundamentals" and "opinion" in events[0]
+    assert events[1]["agent"] == "technical" and events[1]["skipped"] is True
+    assert "data unavailable" in events[1]["reason"]
