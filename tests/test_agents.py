@@ -44,6 +44,28 @@ def test_fundamentals_agent_uses_facts_and_price(tmp_path):
     assert "pe" in ev.metrics and "roe" in ev.metrics
 
 
+def test_fundamentals_gather_adds_filing_context(tmp_path):
+    closes = [float(x) for x in range(100, 360)]
+    provider = PriceProvider(fetch_yfinance=lambda t: _prices(closes), fetch_stooq=lambda t: _prices(closes))
+    facts = {"net_income": 100.0, "revenue": 1000.0, "revenue_prev": 900.0,
+             "equity": 500.0, "total_debt": 250.0, "eps_ttm": 5.0}
+
+    class FakeFilingRetriever:
+        def retrieve(self, ticker, query, as_of, k, candidate_k):
+            return ["Risk factors: supply concentration."]
+
+    ingested = {}
+    agent = FundamentalsAgent(
+        facts_source=type("F", (), {"company_facts": staticmethod(lambda t, as_of: facts)})(),
+        prices=provider, client=_client(tmp_path),
+        filing_retriever=FakeFilingRetriever(), filing_ingest_fn=lambda t: ingested.setdefault(t, True),
+    )
+    ev = agent.gather("AAPL", as_of=date(2025, 9, 1))
+    assert "pe" in ev.metrics
+    assert any("supply concentration" in c for c in ev.context)
+    assert ingested["AAPL"] is True
+
+
 def test_agent_judge_returns_opinion(tmp_path):
     closes = [float(x) for x in range(100, 360)]
     provider = PriceProvider(fetch_yfinance=lambda t: _prices(closes), fetch_stooq=lambda t: _prices(closes))
