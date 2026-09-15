@@ -1,0 +1,32 @@
+[
+  {
+    "ticker": "AAPL",
+    "as_of": "2026-09-15",
+    "expected_verdict": "hold",
+    "expected_stances": {
+      "fundamentals": "bearish",
+      "technical": "bullish",
+      "sentiment": "bullish"
+    }
+  },
+  {
+    "ticker": "MSFT",
+    "as_of": "2026-09-15",
+    "expected_verdict": "buy",
+    "expected_stances": {
+      "fundamentals": "neutral",
+      "technical": "bullish",
+      "sentiment": "bullish"
+    }
+  },
+  {
+    "ticker": "NVDA",
+    "as_of": "2026-09-15",
+    "expected_verdict": "hold",
+    "expected_stances": {
+      "fundamentals": "neutral",
+      "technical": "bullish",
+      "sentiment": "neutral"
+    }
+  }
+]
