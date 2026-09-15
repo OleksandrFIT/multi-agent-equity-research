@@ -4,6 +4,18 @@ import re
 from typing import Protocol
 
 
+class NoFilingError(ValueError):
+    pass
+
+
+def select_filing_asof(filings, as_of):
+    """Return the most recent filing with filing_date <= as_of, or raise NoFilingError."""
+    eligible = [f for f in filings if f.filing_date <= as_of]
+    if not eligible:
+        raise NoFilingError(f"no filing on or before {as_of}")
+    return max(eligible, key=lambda f: f.filing_date)
+
+
 class FactsSource(Protocol):
     def company_facts(self, ticker: str) -> dict[str, float]: ...
 
