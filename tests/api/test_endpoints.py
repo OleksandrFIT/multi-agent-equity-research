@@ -34,3 +34,19 @@ def test_analyze_streams_agents_then_verdict(monkeypatch):
     assert "technical" in body and "skipped" in body
     assert "event: verdict" in body
     assert '"verdict": "buy"' in body
+
+
+def test_ingest(monkeypatch):
+    monkeypatch.setattr(core, "ingest_ticker", lambda ticker: 7)
+    client = TestClient(main.app)
+    resp = client.post("/api/ingest", json={"ticker": "AAPL"})
+    assert resp.status_code == 200
+    assert resp.json() == {"ticker": "AAPL", "ingested": 7}
+
+
+def test_backtest_config(monkeypatch):
+    monkeypatch.setattr(core, "backtest_config",
+                        lambda: {"universe": ["AAPL"], "dates": ["2024-03-15"], "horizons": [21, 63]})
+    client = TestClient(main.app)
+    resp = client.get("/api/backtest/config")
+    assert resp.json()["horizons"] == [21, 63]
