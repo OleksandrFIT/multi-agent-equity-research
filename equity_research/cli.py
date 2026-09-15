@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
+from pathlib import Path
 
 import typer
 
@@ -9,9 +10,11 @@ from equity_research.agents.risk import RiskAgent
 from equity_research.agents.sentiment import SentimentAgent
 from equity_research.agents.technical import TechnicalAgent
 from equity_research.config import Config
-from equity_research.data.adapters import fetch_stooq, fetch_yfinance
+from equity_research.data.adapters import fetch_stooq, fetch_yfinance, fetch_yfinance_long
 from equity_research.data.edgar import EdgarProvider
 from equity_research.data.prices import PriceProvider
+from equity_research.eval.backtest import run_backtest
+from equity_research.eval.report import render_backtest_json, render_backtest_markdown
 from equity_research.llm.cache import DiskCache
 from equity_research.llm.ollama_client import OllamaClient
 from equity_research.orchestration.aggregator import Aggregator, Verdict
@@ -69,6 +72,49 @@ def ingest(ticker: str, config: str = "config.yaml"):
     store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"]))
     n = ingest_news(resilient(fetch_news, cfg.net), store, ticker.upper())
     typer.echo(f"Ingested {n} news items for {ticker.upper()}")
+
+
+def build_backtest_verdict(cfg: Config, client):
+    prices = PriceProvider(fetch_yfinance=resilient(fetch_yfinance_long, cfg.net),
+                           fetch_stooq=resilient(fetch_stooq, cfg.net))
+    edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
+    edgar.company_facts = resilient(edgar.company_facts, cfg.net)
+
+    def run_verdict(ticker, as_of):
+        agents = [
+            FundamentalsAgent(facts_source=edgar, prices=prices, client=client),
+            TechnicalAgent(prices=prices, client=client),
+            RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
+        ]
+        return Orchestrator(agents=agents, aggregator=Aggregator(cfg, client)).run(ticker, as_of)
+
+    return run_verdict
+
+
+def _full_close(ticker: str):
+    df = fetch_yfinance_long(ticker)
+    if df.index.tz is not None:
+        df = df.copy()
+        df.index = df.index.tz_localize(None)
+    return df["Close"]
+
+
+@app.command()
+def backtest(config: str = "config.yaml"):
+    cfg = Config.load(config)
+    from ollama import Client
+
+    chat_fn = Client(host=cfg.ollama_host, timeout=cfg.net["ollama_timeout"]).chat
+    client = OllamaClient(model=cfg.model, cache=DiskCache(cfg.cache_dir),
+                          seed=cfg.seed, temperature=cfg.temperature, chat_fn=chat_fn)
+    dates = [datetime.strptime(d, "%Y-%m-%d").date() for d in cfg.backtest["dates"]]
+    records = run_backtest(cfg.backtest["universe"], dates, cfg.backtest["horizons"],
+                           build_backtest_verdict(cfg, client), _full_close)
+    md = render_backtest_markdown(records, cfg.backtest["horizons"])
+    Path(cfg.backtest["report_path"]).write_text(md)
+    Path(cfg.backtest["report_path"].replace(".md", ".json")).write_text(
+        render_backtest_json(records, cfg.backtest["horizons"]))
+    typer.echo(md)
 
 
 if __name__ == "__main__":
