@@ -36,7 +36,8 @@ app = typer.Typer(help="Multi-agent equity research")
 
 
 def _build_filing_pieces(cfg, vs):
-    filing_store = FilingStore(vs, ParentStore(cfg.rag["parent_dir"]))
+    filing_store = FilingStore(vs, ParentStore(cfg.rag["parent_dir"]),
+                               parent_max_chars=cfg.rag["filing_parent_max_chars"])
     retriever = FilingRetriever(filing_store, scorer=default_scorer(cfg.rag["rerank_model"]))
 
     def ingest_fn(ticker):
@@ -90,7 +91,8 @@ def ingest(ticker: str, config: str = "config.yaml"):
     vs = ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"])
     n = ingest_news(resilient(fetch_news, cfg.net), NewsStore(vs), ticker.upper())
     sections = resilient(fetch_filing_sections, cfg.net)(ticker.upper(), date.today(), cfg.edgar_user_agent)
-    FilingStore(vs, ParentStore(cfg.rag["parent_dir"])).upsert(sections)
+    FilingStore(vs, ParentStore(cfg.rag["parent_dir"]),
+                parent_max_chars=cfg.rag["filing_parent_max_chars"]).upsert(sections)
     typer.echo(f"Ingested {n} news items and {len(sections)} filing sections for {ticker.upper()}")
 
 

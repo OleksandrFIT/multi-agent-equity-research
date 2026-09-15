@@ -6,9 +6,12 @@ from equity_research.rag.filing_records import chunk_filing
 
 
 class FilingStore:
-    def __init__(self, vector_store, parent_store):
+    def __init__(self, vector_store, parent_store, parent_max_chars: int = 4000):
         self.vs = vector_store
         self.ps = parent_store
+        # 10-K sections (esp. Risk Factors) can be tens of KB — cap the parent text
+        # returned to the LLM so it fits the context window and stays on-signal.
+        self.parent_max_chars = parent_max_chars
 
     def upsert(self, sections) -> None:
         ids: list[str] = []
@@ -42,5 +45,5 @@ class FilingStore:
             if pid is None or pid in seen:
                 continue
             seen.add(pid)
-            out.append((self.ps.get(pid), meta))
+            out.append((self.ps.get(pid)[: self.parent_max_chars], meta))
         return out

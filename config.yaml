@@ -26,6 +26,7 @@ rag:
   filing_retrieve_k: 3
   filing_candidate_k: 12
   parent_dir: .parents
+  filing_parent_max_chars: 4000
 net:
   data_timeout: 20
   data_attempts: 3

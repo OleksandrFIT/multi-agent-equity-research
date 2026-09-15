@@ -32,6 +32,7 @@ class Config(BaseModel):
         "filing_retrieve_k": 3,
         "filing_candidate_k": 12,
         "parent_dir": ".parents",
+        "filing_parent_max_chars": 4000,
     })
     net: dict = Field(default_factory=lambda: {
         "data_timeout": 20,

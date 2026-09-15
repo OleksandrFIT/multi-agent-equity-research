@@ -49,3 +49,12 @@ def test_search_filters_doc_type_and_returns_parent_texts(tmp_path):
     ]}
     assert len(hits) == 1
     assert hits[0][0] == "Risk factors body text here."
+
+
+def test_search_caps_parent_text(tmp_path):
+    vs = FakeVectorStore()
+    ps = ParentStore(tmp_path)
+    store = FilingStore(vs, ps, parent_max_chars=10)
+    store.upsert([_section("This risk factors section is quite long indeed.")])
+    hits = store.search("risks", ticker="AAPL", as_of=date(2024, 6, 1), candidate_k=8)
+    assert len(hits[0][0]) == 10  # parent text capped for the LLM prompt
