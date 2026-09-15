@@ -39,3 +39,10 @@ def test_markdown_shows_caution_when_present():
 def test_markdown_omits_caution_when_absent():
     md = render_markdown(_verdict())  # _verdict() has no caution
     assert "Elevated risk" not in md
+
+
+def test_markdown_shows_dropped_facts_count():
+    v = _verdict()
+    v.opinions[0].dropped_facts = ["dropped unsupported: made up 999"]
+    md = render_markdown(v)
+    assert "grounding dropped 1 unsupported fact" in md

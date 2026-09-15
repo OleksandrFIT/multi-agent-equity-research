@@ -29,6 +29,10 @@ def _metric_values(evidence: Evidence) -> list[float]:
     return vals
 
 
+# NOTE: number support is label-blind by design — a fact number is accepted if it matches
+# ANY metric value (or its displayed scale). This keeps the guardrail lenient (its goal is
+# catching wholesale fabrications, not label precision); a fact that cites a real number
+# under the wrong label can survive. Tightening to per-label matching risks false drops.
 def _number_supported(fact: str, metric_values: list[float]) -> bool:
     for tok in _NUM.findall(fact):
         decimals = len(tok.split(".")[1]) if "." in tok else 0
