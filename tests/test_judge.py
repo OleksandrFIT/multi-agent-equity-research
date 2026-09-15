@@ -1,6 +1,7 @@
 from datetime import date
 from pathlib import Path
 
+from equity_research.agents.base import AgentOpinion
 from equity_research.agents.judge import judge_evidence
 from equity_research.data.models import Evidence
 from equity_research.llm.cache import DiskCache
@@ -16,6 +17,24 @@ def _client(tmp_path: Path, content: str) -> OllamaClient:
 
 def _evidence():
     return Evidence(ticker="AAPL", as_of=date(2026, 9, 15), metrics={"pe": 30.0})
+
+
+def test_reconcile_flips_contradictory_stance():
+    from equity_research.agents.judge import reconcile_stance
+    op = AgentOpinion(agent="fundamentals", stance="bullish", score=-0.5, confidence=0.7, rationale="r")
+    assert reconcile_stance(op).stance == "bearish"
+
+
+def test_reconcile_leaves_consistent_stance():
+    from equity_research.agents.judge import reconcile_stance
+    op = AgentOpinion(agent="technical", stance="bullish", score=0.6, confidence=0.7, rationale="r")
+    assert reconcile_stance(op).stance == "bullish"
+
+
+def test_reconcile_leaves_neutral_small_score():
+    from equity_research.agents.judge import reconcile_stance
+    op = AgentOpinion(agent="sentiment", stance="neutral", score=0.05, confidence=0.5, rationale="r")
+    assert reconcile_stance(op).stance == "neutral"
 
 
 def test_judge_parses_opinion(tmp_path):
