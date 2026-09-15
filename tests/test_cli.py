@@ -42,6 +42,39 @@ def test_analyze_ticker_includes_risk_agent(monkeypatch):
     assert "fundamentals" in names and "technical" in names
 
 
+def test_analyze_ticker_wraps_fetchers_resiliently(monkeypatch):
+    import pandas as pd
+
+    captured = {}
+
+    class FakeOrch:
+        def __init__(self, agents, aggregator):
+            captured["agents"] = agents
+
+        def run(self, ticker, as_of):
+            from equity_research.orchestration.aggregator import Verdict
+            return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
+                           confidence=0.0, narrative="n", opinions=[], skipped_agents=[])
+
+    calls = {"n": 0}
+
+    def flaky(_t):
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise RuntimeError("blip")
+        idx = pd.date_range("2025-01-01", periods=3, freq="D")
+        return pd.DataFrame({"Close": [1.0, 2.0, 3.0]}, index=idx)
+
+    monkeypatch.setattr(cli_module, "Orchestrator", FakeOrch)
+    monkeypatch.setattr(cli_module, "fetch_yfinance", flaky)
+    cli_module.analyze_ticker("AAPL", date(2026, 9, 15), "config.yaml")
+
+    tech = next(a for a in captured["agents"] if a.name == "technical")
+    df = tech.prices.fetch_yfinance("AAPL")  # the wired (resilient) fetcher
+    assert df.iloc[-1]["Close"] == 3.0
+    assert calls["n"] == 2  # retried once after the first failure
+
+
 def test_analyze_ticker_includes_sentiment_agent(monkeypatch):
     captured = {}
 

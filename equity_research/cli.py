@@ -23,6 +23,7 @@ from equity_research.rag.reranker import default_scorer
 from equity_research.rag.retrieve import NewsRetriever
 from equity_research.rag.store import NewsStore
 from equity_research.reporting.report import render_markdown
+from equity_research.util.resilient import resilient
 
 app = typer.Typer(help="Multi-agent equity research")
 
@@ -31,17 +32,19 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str) -> Verdict:
     cfg = Config.load(cfg_path)
     from ollama import Client
 
-    chat_fn = Client(host=cfg.ollama_host).chat
+    chat_fn = Client(host=cfg.ollama_host, timeout=cfg.net["ollama_timeout"]).chat
     client = OllamaClient(model=cfg.model, cache=DiskCache(cfg.cache_dir),
                           seed=cfg.seed, temperature=cfg.temperature, chat_fn=chat_fn)
-    prices = PriceProvider(fetch_yfinance=fetch_yfinance, fetch_stooq=fetch_stooq)
+    prices = PriceProvider(fetch_yfinance=resilient(fetch_yfinance, cfg.net),
+                           fetch_stooq=resilient(fetch_stooq, cfg.net))
     edgar = EdgarProvider(user_agent=cfg.edgar_user_agent)
+    edgar.company_facts = resilient(edgar.company_facts, cfg.net)
     news_store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"],
                                              embed_model=cfg.rag["embed_model"]))
     retriever = NewsRetriever(news_store, scorer=default_scorer(cfg.rag["rerank_model"]))
     sentiment = SentimentAgent(
         retriever=retriever,
-        ingest_fn=lambda t: ingest_news(fetch_news, news_store, t),
+        ingest_fn=lambda t: ingest_news(resilient(fetch_news, cfg.net), news_store, t),
         client=client, k=cfg.rag["retrieve_k"], candidate_k=cfg.rag["candidate_k"],
     )
     agents = [
@@ -64,7 +67,7 @@ def analyze(ticker: str, config: str = "config.yaml"):
 def ingest(ticker: str, config: str = "config.yaml"):
     cfg = Config.load(config)
     store = NewsStore(ChromaVectorStore(persist_dir=cfg.rag["chroma_dir"], embed_model=cfg.rag["embed_model"]))
-    n = ingest_news(fetch_news, store, ticker.upper())
+    n = ingest_news(resilient(fetch_news, cfg.net), store, ticker.upper())
     typer.echo(f"Ingested {n} news items for {ticker.upper()}")
 
 
