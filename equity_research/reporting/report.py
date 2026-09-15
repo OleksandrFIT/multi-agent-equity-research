@@ -22,5 +22,7 @@ def render_markdown(verdict: Verdict) -> str:
     if verdict.skipped_agents:
         lines.append("")
         lines.append(f"_Skipped agents: {', '.join(verdict.skipped_agents)}_")
+    if verdict.caution:
+        lines += ["", f"**Risk caution:** {verdict.caution}"]
     lines += ["", "---", f"> {verdict.disclaimer}"]
     return "\n".join(lines)
