@@ -70,3 +70,33 @@ def ingest(req: IngestRequest):
 @app.get("/api/backtest/config")
 def backtest_config():
     return core.backtest_config()
+
+
+@app.get("/api/backtest")
+def backtest():
+    q: "queue.Queue" = queue.Queue()
+
+    def on_progress(ev: dict):
+        q.put(("progress", ev))
+
+    def worker():
+        try:
+            from equity_research.eval.report import render_backtest_json
+
+            records, horizons = core.run_backtest_records(on_progress)
+            q.put(("report", json.loads(render_backtest_json(records, horizons))))
+        except Exception as exc:
+            q.put(("error", {"message": str(exc)}))
+        finally:
+            q.put((None, None))
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    def gen():
+        while True:
+            event, data = q.get()
+            if event is None:
+                break
+            yield sse_event(event, data)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")

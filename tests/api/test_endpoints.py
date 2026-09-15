@@ -50,3 +50,21 @@ def test_backtest_config(monkeypatch):
     client = TestClient(main.app)
     resp = client.get("/api/backtest/config")
     assert resp.json()["horizons"] == [21, 63]
+
+
+def test_backtest_streams_progress_then_report(monkeypatch):
+    from datetime import date
+
+    from equity_research.eval.backtest import BacktestRecord
+
+    def fake_run(on_progress):
+        on_progress({"ticker": "AAPL", "as_of": "2024-03-15"})
+        recs = [BacktestRecord("AAPL", date(2024, 3, 15), "buy", 0.5, {21: 0.1, 63: 0.2})]
+        return recs, [21, 63]
+
+    monkeypatch.setattr(core, "run_backtest_records", fake_run)
+    client = TestClient(main.app)
+    body = client.get("/api/backtest").text
+    assert "event: progress" in body and "AAPL" in body
+    assert "event: report" in body
+    assert '"21"' in body
