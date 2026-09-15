@@ -14,7 +14,7 @@ class NewsStore:
     def __init__(self, store: VectorStore):
         self.store = store
 
-    def upsert(self, chunks: list[tuple[str, dict]]) -> None:
+    def upsert(self, chunks: list[tuple[str, dict]]) -> int:
         ids, texts, metas = [], [], []
         # Dedup exact (content_hash, text) duplicates within this batch first,
         # then assign ids as content_hash:<index among kept chunks of that hash>
@@ -37,10 +37,11 @@ class NewsStore:
         existing = self.store.existing_ids(ids)
         fresh = [i for i in ids if i not in existing]
         if not fresh:
-            return
+            return 0
         fresh_set = set(fresh)
         keep = [(i, t, m) for i, t, m in zip(ids, texts, metas) if i in fresh_set]
         self.store.add([i for i, _, _ in keep], [t for _, t, _ in keep], [m for _, _, m in keep])
+        return len(fresh)
 
     def search(self, query: str, ticker: str, as_of: date, k: int) -> list[tuple[str, dict]]:
         where = {"$and": [
