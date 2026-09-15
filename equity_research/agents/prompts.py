@@ -20,6 +20,7 @@ OPINION_SCHEMA = {
 _ROLES = {
     "fundamentals": "a fundamentals analyst judging valuation and financial health",
     "technical": "a technical analyst judging price trend and momentum",
+    "sentiment": "a market-sentiment analyst judging the tone of recent news",
 }
 
 # label, formatter, neutral interpretation convention (helps small models read the
