@@ -4,6 +4,7 @@ import math
 import re
 
 from equity_research.agents.base import AgentOpinion
+from equity_research.agents.prompts import _format_metrics
 from equity_research.data.models import Evidence
 
 _NUM = re.compile(r"-?\d+(?:\.\d+)?")
@@ -18,6 +19,13 @@ def _metric_values(evidence: Evidence) -> list[float]:
             continue
         if not math.isnan(f):
             vals.append(f)
+    # Also ground against the metric numbers AS DISPLAYED to the LLM (e.g. ROE shown as
+    # 151.9%, growth as +6.4%), so facts citing the formatted scale are not falsely dropped.
+    for tok in _NUM.findall(_format_metrics(evidence.metrics)):
+        try:
+            vals.append(float(tok))
+        except ValueError:
+            continue
     return vals
 
 

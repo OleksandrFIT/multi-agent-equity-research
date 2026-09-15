@@ -28,6 +28,17 @@ def test_grounds_fact_by_context_substring():
     assert "Analysts cite supply constraints" in grounded.key_facts
 
 
+def test_scaled_percentage_fact_matches_displayed_metric():
+    # LLM cites ROE/growth in the formatted percentage scale it saw in the prompt,
+    # while the raw metric is a ratio; grounding must accept the displayed form.
+    op = AgentOpinion(agent="fundamentals", stance="bearish", score=-0.5, confidence=0.8,
+                      rationale="r", key_facts=["ROE of 151.9%", "revenue growth +6.4%"])
+    ev = _ev(metrics={"roe": 1.519, "revenue_growth": 0.0643})
+    grounded = ground(op, ev)
+    assert "ROE of 151.9%" in grounded.key_facts
+    assert "revenue growth +6.4%" in grounded.key_facts
+
+
 def test_fact_without_numbers_or_evidence_is_dropped():
     op = AgentOpinion(agent="technical", stance="bullish", score=0.4, confidence=0.7,
                       rationale="r", key_facts=["The stock will definitely moon"])
