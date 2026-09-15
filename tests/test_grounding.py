@@ -33,3 +33,12 @@ def test_fact_without_numbers_or_evidence_is_dropped():
                       rationale="r", key_facts=["The stock will definitely moon"])
     grounded = ground(op, _ev(metrics={"rsi14": 55.0}))
     assert grounded.key_facts == []
+
+
+def test_rounded_fact_matches_full_precision_metric():
+    op = AgentOpinion(agent="technical", stance="bullish", score=0.4, confidence=0.7,
+                      rationale="r", key_facts=["50-day MA is 318.32", "P/E of 44.6"])
+    ev = _ev(metrics={"sma50": 318.324693, "pe": 44.61999})
+    grounded = ground(op, ev)
+    assert "50-day MA is 318.32" in grounded.key_facts   # 318.32 rounds to metric at 2 dp
+    assert "P/E of 44.6" in grounded.key_facts            # 44.6 rounds to metric at 1 dp

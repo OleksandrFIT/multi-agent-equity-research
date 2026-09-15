@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 
 from equity_research.agents.base import AgentOpinion
@@ -8,30 +9,36 @@ from equity_research.data.models import Evidence
 _NUM = re.compile(r"-?\d+(?:\.\d+)?")
 
 
-def _norm(tok: str) -> str:
-    try:
+def _metric_values(evidence: Evidence) -> list[float]:
+    vals = []
+    for v in evidence.metrics.values():
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            continue
+        if not math.isnan(f):
+            vals.append(f)
+    return vals
+
+
+def _number_supported(fact: str, metric_values: list[float]) -> bool:
+    for tok in _NUM.findall(fact):
+        decimals = len(tok.split(".")[1]) if "." in tok else 0
         f = float(tok)
-    except ValueError:
-        return tok
-    return ("%f" % f).rstrip("0").rstrip(".")  # 44.600000 -> 44.6 ; 100.000000 -> 100
-
-
-def _numbers(s: str) -> set[str]:
-    return {_norm(n) for n in _NUM.findall(s)}
+        if any(round(m, decimals) == round(f, decimals) for m in metric_values):
+            return True
+    return False
 
 
 def ground(opinion: AgentOpinion, evidence: Evidence) -> AgentOpinion:
-    metric_numbers: set[str] = set()
-    for v in evidence.metrics.values():
-        metric_numbers |= _numbers(str(v))
+    metric_values = _metric_values(evidence)
     context_blob = "\n".join(evidence.context).lower()
 
     kept: list[str] = []
     dropped: list[str] = []
     for fact in opinion.key_facts:
-        fact_numbers = _numbers(fact)
-        number_supported = bool(fact_numbers & metric_numbers)
-        words = [w for w in re.findall(r"[a-zA-Z]{5,}", fact.lower())]
+        number_supported = _number_supported(fact, metric_values)
+        words = re.findall(r"[a-zA-Z]{5,}", fact.lower())
         text_supported = any(w in context_blob for w in words) if context_blob else False
         if number_supported or text_supported:
             kept.append(fact)
