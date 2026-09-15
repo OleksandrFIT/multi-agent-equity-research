@@ -11,6 +11,7 @@ from equity_research.agents.sentiment import SentimentAgent
 from equity_research.agents.technical import TechnicalAgent
 from equity_research.config import Config
 from equity_research.data.adapters import fetch_stooq, fetch_yfinance, fetch_yfinance_long
+from equity_research.data.company import company_name
 from equity_research.data.edgar import EdgarProvider
 from equity_research.data.prices import PriceProvider, PriceValidationError
 from equity_research.eval.backtest import run_backtest
@@ -84,6 +85,7 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
         retriever=retriever,
         ingest_fn=lambda t: ingest_news(resilient(fetch_news, cfg.net), news_store, t),
         client=client, k=cfg.rag["retrieve_k"], candidate_k=cfg.rag["candidate_k"],
+        name_fn=company_name,
     )
     filing_retriever, filing_ingest = _build_filing_pieces(cfg, vs)
     agents = [
