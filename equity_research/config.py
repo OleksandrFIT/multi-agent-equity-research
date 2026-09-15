@@ -23,6 +23,13 @@ class Config(BaseModel):
         "beta_high": 1.5,
         "drawdown_high": 0.40,
     })
+    rag: dict = Field(default_factory=lambda: {
+        "chroma_dir": ".chroma",
+        "embed_model": "nomic-embed-text",
+        "retrieve_k": 6,
+        "candidate_k": 20,
+        "rerank_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    })
 
     @classmethod
     def load(cls, path: str | Path = "config.yaml") -> "Config":

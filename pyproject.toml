@@ -14,10 +14,16 @@ dependencies = [
     "pandas-datareader>=0.10",
     "edgartools>=3.0",
     "jsonschema>=4.0",
+    "langchain-chroma>=0.1",
+    "langchain-ollama>=0.1",
+    "langchain-text-splitters>=0.2",
+    "chromadb>=0.5",
+    "feedparser>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+rerank = ["sentence-transformers>=3.0"]
 
 [build-system]
 requires = ["hatchling"]

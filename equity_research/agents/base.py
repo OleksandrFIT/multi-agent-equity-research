@@ -17,6 +17,7 @@ class AgentOpinion(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, default=0.0)
     rationale: str
     key_facts: list[str] = Field(default_factory=list)
+    dropped_facts: list[str] = Field(default_factory=list)
 
 
 class Agent(Protocol):

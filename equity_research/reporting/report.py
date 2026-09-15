@@ -19,6 +19,8 @@ def render_markdown(verdict: Verdict) -> str:
     for o in verdict.opinions:
         facts = "; ".join(o.key_facts) if o.key_facts else "—"
         lines.append(f"- **{o.agent}** — {o.stance} (score {o.score:+.2f}, conf {o.confidence:.0%}): {o.rationale} _[{facts}]_")
+        if o.dropped_facts:
+            lines.append(f"  - _grounding dropped {len(o.dropped_facts)} unsupported fact(s)_")
     if verdict.skipped_agents:
         lines.append("")
         lines.append(f"_Skipped agents: {', '.join(verdict.skipped_agents)}_")

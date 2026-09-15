@@ -32,3 +32,12 @@ def test_normalize_weights_over_available_agents():
     norm = cfg.normalized_weights(["fundamentals", "technical"])
     assert abs(sum(norm.values()) - 1.0) < 1e-9
     assert abs(norm["fundamentals"] - 0.4 / 0.65) < 1e-9
+
+
+def test_config_has_rag_defaults():
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".cache",
+                 edgar_user_agent="x x@x.com",
+                 weights={"fundamentals": 0.4, "technical": 0.25, "sentiment": 0.15, "risk": 0.2})
+    assert cfg.rag["chroma_dir"] == ".chroma"
+    assert cfg.rag["embed_model"] == "nomic-embed-text"
+    assert cfg.rag["retrieve_k"] == 6
