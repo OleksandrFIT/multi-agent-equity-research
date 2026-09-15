@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from equity_research.agents.base import AgentOpinion
+from equity_research.agents.grounding import ground
 from equity_research.agents.prompts import OPINION_SCHEMA, build_judge_prompt
 from equity_research.data.models import Evidence
 from equity_research.llm.ollama_client import OllamaClient
@@ -10,7 +11,7 @@ def judge_evidence(agent: str, evidence: Evidence, client: OllamaClient) -> Agen
     prompt = build_judge_prompt(agent, evidence)
     try:
         raw = client.generate_json(prompt, OPINION_SCHEMA)
-        return AgentOpinion(agent=agent, **raw)
+        return ground(AgentOpinion(agent=agent, **raw), evidence)
     except Exception:  # invalid JSON after retries, or schema validation failure
         return AgentOpinion(
             agent=agent,
