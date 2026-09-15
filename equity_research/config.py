@@ -36,6 +36,12 @@ class Config(BaseModel):
         "data_base_delay": 0.5,
         "ollama_timeout": 180,
     })
+    backtest: dict = Field(default_factory=lambda: {
+        "universe": ["AAPL", "MSFT", "KO", "JPM", "XOM"],
+        "dates": ["2024-03-15", "2024-06-14", "2024-09-13", "2024-12-13"],
+        "horizons": [21, 63],
+        "report_path": "backtest_report.md",
+    })
 
     @classmethod
     def load(cls, path: str | Path = "config.yaml") -> "Config":

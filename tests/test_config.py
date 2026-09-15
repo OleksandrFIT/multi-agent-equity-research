@@ -50,3 +50,12 @@ def test_config_has_rag_defaults():
     assert cfg.rag["chroma_dir"] == ".chroma"
     assert cfg.rag["embed_model"] == "nomic-embed-text"
     assert cfg.rag["retrieve_k"] == 6
+
+
+def test_config_has_backtest_defaults():
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".cache",
+                 edgar_user_agent="x x@x.com",
+                 weights={"fundamentals": 0.4, "technical": 0.25, "sentiment": 0.15, "risk": 0.2})
+    assert cfg.backtest["horizons"] == [21, 63]
+    assert len(cfg.backtest["universe"]) >= 1
+    assert cfg.backtest["report_path"].endswith(".md")

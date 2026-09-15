@@ -1,0 +1,12 @@
+{
+  "documents": [
+    {"id": "aapl-earnings", "ticker": "AAPL", "text": "Apple reported record quarterly revenue driven by strong iPhone and services growth."},
+    {"id": "aapl-lawsuit", "ticker": "AAPL", "text": "Apple faces an antitrust investigation over App Store fees in Europe."},
+    {"id": "aapl-supply", "ticker": "AAPL", "text": "Apple warns of supply chain constraints affecting Mac production this quarter."}
+  ],
+  "cases": [
+    {"ticker": "AAPL", "question": "How were Apple earnings and revenue?", "expected": "aapl-earnings"},
+    {"ticker": "AAPL", "question": "Any legal or regulatory problems for Apple?", "expected": "aapl-lawsuit"},
+    {"ticker": "AAPL", "question": "Supply chain or production issues?", "expected": "aapl-supply"}
+  ]
+}

@@ -92,3 +92,30 @@ def test_analyze_ticker_includes_sentiment_agent(monkeypatch):
     names = [a.name for a in captured["agents"]]
     assert "sentiment" in names
     assert {"fundamentals", "technical", "risk"} <= set(names)
+
+
+def test_backtest_builder_excludes_sentiment(monkeypatch):
+    import equity_research.cli as cli_module
+    from equity_research.config import Config
+
+    captured = {}
+
+    class FakeOrch:
+        def __init__(self, agents, aggregator):
+            captured["agents"] = [a.name for a in agents]
+
+        def run(self, ticker, as_of):
+            from equity_research.orchestration.aggregator import Verdict
+            return Verdict(ticker=ticker, as_of=as_of, verdict="hold", score=0.0,
+                           confidence=0.0, narrative="n", opinions=[], skipped_agents=[])
+
+    monkeypatch.setattr(cli_module, "Orchestrator", FakeOrch)
+    cfg = Config.load("config.yaml")
+
+    class FakeClient:
+        pass
+
+    run_verdict = cli_module.build_backtest_verdict(cfg, FakeClient())
+    run_verdict("AAPL", date(2024, 3, 15))
+    assert "sentiment" not in captured["agents"]
+    assert {"fundamentals", "technical", "risk"} == set(captured["agents"])
