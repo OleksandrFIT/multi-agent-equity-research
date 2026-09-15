@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from functools import lru_cache
 
+
+@lru_cache(maxsize=256)
 def company_name(ticker: str) -> str | None:
     """Best-effort company name for a ticker via yfinance; None on any failure.
 

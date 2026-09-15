@@ -170,3 +170,15 @@ def test_known_ticker_preflight_returns_none():
             return ("df", None)  # any non-raising result
 
     assert _unknown_ticker_verdict(FakePrices(), "AAPL", date(2026, 9, 15)) is None
+
+
+def test_transient_price_error_falls_through_to_none():
+    from datetime import date
+
+    from equity_research.cli import _unknown_ticker_verdict
+
+    class FakePrices:
+        def history(self, ticker, as_of):
+            raise RuntimeError("boom")
+
+    assert _unknown_ticker_verdict(FakePrices(), "AAPL", date(2026, 9, 15)) is None

@@ -57,7 +57,6 @@ def _unknown_ticker_verdict(prices, ticker: str, as_of) -> "Verdict | None":
     """
     try:
         prices.history(ticker, as_of)
-        return None
     except PriceValidationError:
         return Verdict(
             ticker=ticker, as_of=as_of, verdict="hold", score=0.0, confidence=0.0,
@@ -65,6 +64,9 @@ def _unknown_ticker_verdict(prices, ticker: str, as_of) -> "Verdict | None":
             narrative=f"No price data for {ticker}; it may be an unknown or delisted ticker.",
             opinions=[],
         )
+    except Exception:
+        return None  # transient/other error: let agents run and degrade to insufficient_data
+    return None
 
 
 def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Verdict:

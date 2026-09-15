@@ -57,6 +57,7 @@ def test_all_agents_skipped_returns_hold(tmp_path):
     assert v.score == 0.0
     assert v.confidence == 0.0
     assert v.opinions == []
+    assert v.status == "insufficient_data"
 
 
 def test_unweighted_agent_treated_as_skipped(tmp_path):

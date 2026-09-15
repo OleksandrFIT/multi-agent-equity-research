@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Callable
 
@@ -12,15 +13,21 @@ _QUERY = "recent news sentiment, outlook, risks and catalysts"
 
 
 def _filter_relevant(texts: list[str], ticker: str, name: str | None) -> list[str]:
-    """Keep only news mentioning the ticker or company name.
+    """Keep only news whose words include the ticker or the company name's first token.
 
-    When the company name is unavailable we cannot reliably tell relevance, so
-    we keep everything rather than risk dropping valid news.
+    Whole-word matching (not substring) so short tickers like "A"/"F" don't match
+    every headline. When the name is unavailable we keep everything rather than
+    risk dropping valid news.
     """
-    if not name:
+    if not name or not name.split():
         return texts
-    needles = [ticker.lower(), name.split()[0].lower()]
-    return [t for t in texts if any(n in t.lower() for n in needles)]
+    needles = {ticker.lower(), name.split()[0].lower()}
+    out = []
+    for t in texts:
+        words = set(re.findall(r"[a-z0-9]+", t.lower()))
+        if needles & words:
+            out.append(t)
+    return out
 
 
 class SentimentAgent:
