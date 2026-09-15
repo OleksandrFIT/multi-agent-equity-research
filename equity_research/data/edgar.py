@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Protocol
 
 
@@ -17,7 +18,7 @@ def select_filing_asof(filings, as_of):
 
 
 class FactsSource(Protocol):
-    def company_facts(self, ticker: str) -> dict[str, float]: ...
+    def company_facts(self, ticker: str, as_of: date) -> dict[str, float]: ...
 
 
 def _prior_revenue(financials) -> float:
@@ -54,11 +55,14 @@ class EdgarProvider:
     def __init__(self, user_agent: str):
         self.user_agent = user_agent
 
-    def company_facts(self, ticker: str) -> dict[str, float]:
+    def company_facts(self, ticker: str, as_of: date) -> dict[str, float]:
         from edgar import Company, set_identity
 
         set_identity(self.user_agent)
-        financials = Company(ticker).get_financials()
+        company = Company(ticker)
+        filings = company.get_filings(form=["10-K", "10-Q"])
+        filing = select_filing_asof(list(filings), as_of)
+        financials = filing.obj().financials
         m = financials.get_financial_metrics()
 
         net_income = float(m["net_income"])
