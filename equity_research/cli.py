@@ -31,7 +31,7 @@ from equity_research.util.resilient import resilient
 app = typer.Typer(help="Multi-agent equity research")
 
 
-def analyze_ticker(ticker: str, as_of: date, cfg_path: str) -> Verdict:
+def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Verdict:
     cfg = Config.load(cfg_path)
     from ollama import Client
 
@@ -57,7 +57,7 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str) -> Verdict:
         RiskAgent(prices=prices, client=client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
     ]
     orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, client))
-    return orch.run(ticker, as_of)
+    return orch.run(ticker, as_of, on_event=on_event)
 
 
 @app.command()
