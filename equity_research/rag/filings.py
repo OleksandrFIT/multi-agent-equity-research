@@ -7,7 +7,7 @@ from equity_research.rag.filing_records import FilingSection
 
 
 def fetch_filing_sections(ticker: str, as_of: date, user_agent: str) -> list[FilingSection]:
-    """Extract Item 1A (Risk Factors) + Item 7 (MD&A) from the latest 10-K <= as_of.
+    """Extract Item 1 (Business) + Item 1A (Risk Factors) + Item 7 (MD&A) from the latest 10-K <= as_of.
 
     edgartools section attribute names are version-dependent — verify live and
     adjust only this function if they differ.
@@ -20,7 +20,7 @@ def fetch_filing_sections(ticker: str, as_of: date, user_agent: str) -> list[Fil
     tenk = filing.obj()
     filed = filing.filing_date
     out: list[FilingSection] = []
-    for attr, name in [("risk_factors", "risk_factors"), ("management_discussion", "mda")]:
+    for attr, name in [("risk_factors", "risk_factors"), ("management_discussion", "mda"), ("business", "business")]:
         text = getattr(tenk, attr, None)
         if text:
             out.append(FilingSection(ticker=ticker, section=name, filed_at=filed, form="10-K", text=str(text)))
