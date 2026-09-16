@@ -38,3 +38,19 @@ def test_missing_eps_gives_nan_pe():
     facts["eps_ttm"] = 0.0
     m = compute_fundamental_metrics(facts, price=196.0)
     assert math.isnan(m["pe"])
+
+
+def test_richer_margins_and_ratio():
+    facts = dict(FACTS, operating_income=114000000000.0, free_cash_flow=99000000000.0, current_ratio=0.99)
+    m = compute_fundamental_metrics(facts, price=196.0)
+    assert round(m["operating_margin"], 4) == round(114000000000.0 / 383285000000.0, 4)
+    assert round(m["net_margin"], 4) == round(96995000000.0 / 383285000000.0, 4)
+    assert round(m["fcf_margin"], 4) == round(99000000000.0 / 383285000000.0, 4)
+    assert m["current_ratio"] == 0.99
+
+
+def test_richer_metrics_nan_when_missing():
+    m = compute_fundamental_metrics(FACTS, price=196.0)  # FACTS has no op_income/fcf/current_ratio
+    assert math.isnan(m["operating_margin"])
+    assert math.isnan(m["fcf_margin"])
+    assert math.isnan(m["current_ratio"])
