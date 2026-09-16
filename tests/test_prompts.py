@@ -67,3 +67,12 @@ def test_prompt_has_cot_and_role_rubric_and_examples():
     sent = build_judge_prompt("sentiment", e)
     assert "no relevant news" in sent.lower()  # sentiment role rubric
     assert fund.count('"stance"') >= 3  # at least three few-shot examples
+
+
+def test_prompt_formats_new_fundamental_metrics():
+    e = Evidence(ticker="AAPL", as_of=date(2026, 9, 15),
+                 metrics={"operating_margin": 0.30, "net_margin": 0.25, "fcf_margin": 0.26, "current_ratio": 0.99})
+    prompt = build_judge_prompt("fundamentals", e)
+    assert "Operating margin" in prompt and "30.0%" in prompt
+    assert "Net margin" in prompt
+    assert "Current ratio" in prompt and "0.99x" in prompt

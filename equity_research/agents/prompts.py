@@ -72,6 +72,14 @@ _METRIC_SPECS: dict[str, tuple[str, object, str | None]] = {
     "sma200": ("200-day moving average", lambda v: f"{v:.2f}", None),
     "trend_pct": ("~3-month price trend", lambda v: f"{v:+.1f}%",
                   "positive = price rose over the window"),
+    "operating_margin": ("Operating margin", lambda v: f"{v:.1%}",
+                         "operating income as a % of revenue; higher = more profitable operations"),
+    "net_margin": ("Net margin", lambda v: f"{v:.1%}",
+                   "net income as a % of revenue; higher = more profitable"),
+    "fcf_margin": ("Free-cash-flow margin", lambda v: f"{v:.1%}",
+                   "free cash flow as a % of revenue; higher = stronger cash generation"),
+    "current_ratio": ("Current ratio", lambda v: f"{v:.2f}x",
+                      "current assets over current liabilities; >1 = liquid, <1 = tighter liquidity"),
 }
 
 
