@@ -24,3 +24,18 @@ def test_json_roundtrips_metrics():
     assert "21" in data["horizons"]
     assert data["horizons"]["21"]["n"] == 2
     assert data["n_records"] == 2
+
+
+def test_json_includes_per_record_rows():
+    data = json.loads(render_backtest_json(_recs(), horizons=[21, 63]))
+    assert len(data["records"]) == 2
+    row = data["records"][0]
+    assert row["ticker"] == "AAA" and row["verdict"] == "buy" and abs(row["score"] - 0.5) < 1e-9
+    assert row["fwd_returns"]["21"] == 0.1 and row["fwd_returns"]["63"] == 0.2
+    assert data["records"][1]["fwd_returns"]["63"] is None
+
+
+def test_markdown_has_records_table():
+    md = render_backtest_markdown(_recs(), horizons=[21, 63])
+    assert "| Ticker |" in md
+    assert "AAA" in md and "BBB" in md

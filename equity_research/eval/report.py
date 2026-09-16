@@ -11,10 +11,17 @@ def _horizon_dict(records: list[BacktestRecord], horizons: list[int]) -> dict:
     return {str(h): metrics_for_horizon(records, h) for h in horizons}
 
 
+def _record_rows(records: list[BacktestRecord], horizons: list[int]) -> list[dict]:
+    return [{"ticker": r.ticker, "as_of": str(r.as_of), "verdict": r.verdict, "score": r.score,
+             "fwd_returns": {str(h): r.fwd_returns.get(h) for h in horizons}}
+            for r in records]
+
+
 def render_backtest_json(records: list[BacktestRecord], horizons: list[int]) -> str:
     return json.dumps({
         "n_records": len(records),
         "horizons": _horizon_dict(records, horizons),
+        "records": _record_rows(records, horizons),
         "disclaimer": DISCLAIMER,
     }, indent=2)
 
@@ -32,5 +39,13 @@ def render_backtest_markdown(records: list[BacktestRecord], horizons: list[int])
         final = curve[-1] if curve else 0.0
         lines.append(f"- Naive long-short cumulative return: {final:+.2%}")
         lines.append("")
+    lines.append("## Records")
+    lines.append("| Ticker | As of | Verdict | Score | " + " | ".join(f"fwd {h}d" for h in horizons) + " |")
+    lines.append("|---|---|---|---|" + "---|" * len(horizons))
+    for r in records:
+        fwds = " | ".join("n/a" if r.fwd_returns.get(h) is None else f"{r.fwd_returns[h]:+.2%}"
+                          for h in horizons)
+        lines.append(f"| {r.ticker} | {r.as_of} | {r.verdict} | {r.score:+.2f} | {fwds} |")
+    lines.append("")
     lines += ["---", f"> {DISCLAIMER}"]
     return "\n".join(lines)
