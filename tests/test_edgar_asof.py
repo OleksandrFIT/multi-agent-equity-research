@@ -25,3 +25,14 @@ def test_raises_when_no_filing_before_as_of():
     filings = [_Filing(date(2024, 5, 1))]
     with pytest.raises(NoFilingError):
         select_filing_asof(filings, date(2024, 1, 1))
+
+
+def test_num_is_defensive():
+    import math
+
+    from equity_research.data.edgar import _num
+
+    assert _num({"a": 5}, "a") == 5.0
+    assert math.isnan(_num({"a": None}, "a"))
+    assert math.isnan(_num({}, "missing"))
+    assert math.isnan(_num({"a": "x"}, "a"))
