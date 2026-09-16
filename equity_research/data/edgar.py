@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from datetime import date
 from typing import Protocol
@@ -7,6 +8,15 @@ from typing import Protocol
 
 class NoFilingError(ValueError):
     pass
+
+
+def _num(m: dict, key: str) -> float:
+    """Numeric field or NaN — never raises on missing/None/non-numeric values."""
+    try:
+        f = float(m.get(key))
+    except (TypeError, ValueError):
+        return float("nan")
+    return f if math.isfinite(f) else float("nan")
 
 
 def select_filing_asof(filings, as_of):
@@ -67,16 +77,17 @@ class EdgarProvider:
         filing = select_filing_asof(list(filings), as_of)
         financials = filing.obj().financials
         m = financials.get_financial_metrics()
-
-        net_income = float(m["net_income"])
-        diluted_shares = float(m["shares_outstanding_diluted"])
-        eps_ttm = net_income / diluted_shares if diluted_shares else 0.0
-
+        net_income = _num(m, "net_income")
+        shares = _num(m, "shares_outstanding_diluted")
+        eps_ttm = net_income / shares if math.isfinite(net_income) and math.isfinite(shares) and shares else float("nan")
         return {
             "net_income": net_income,
-            "revenue": float(m["revenue"]),
+            "revenue": _num(m, "revenue"),
             "revenue_prev": _prior_revenue(financials),
-            "equity": float(m["stockholders_equity"]),
-            "total_debt": float(m["total_liabilities"]),
+            "equity": _num(m, "stockholders_equity"),
+            "total_debt": _num(m, "total_liabilities"),
             "eps_ttm": eps_ttm,
+            "operating_income": _num(m, "operating_income"),
+            "free_cash_flow": _num(m, "free_cash_flow"),
+            "current_ratio": _num(m, "current_ratio"),
         }
