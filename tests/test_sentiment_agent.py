@@ -30,7 +30,8 @@ def test_gather_puts_news_into_context(tmp_path):
 
 def test_judge_returns_sentiment_opinion(tmp_path):
     retr = FakeRetriever(["Apple beats estimates."])
-    content = '{"stance":"bullish","score":0.6,"confidence":0.7,"rationale":"good news","key_facts":["Apple beats estimates"]}'
+    content = ('{"reasoning":"good news","stance":"bullish","score":0.6,"confidence":0.7,'
+              '"rationale":"good news","key_facts":["Apple beats estimates"]}')
     agent = SentimentAgent(retriever=retr, ingest_fn=lambda t: None, client=_client(tmp_path, content))
     op = agent.judge(agent.gather("AAPL", as_of=date(2026, 9, 15)))
     assert op.agent == "sentiment"
