@@ -40,12 +40,14 @@ def test_reconcile_leaves_neutral_small_score():
 def test_judge_parses_opinion(tmp_path):
     client = _client(
         tmp_path,
-        '{"stance":"bullish","score":0.6,"confidence":0.8,"rationale":"cheap","key_facts":["pe 30"]}',
+        '{"reasoning":"cheap versus peers","stance":"bullish","score":0.6,"confidence":0.8,'
+        '"rationale":"cheap","key_facts":["pe 30"]}',
     )
     op = judge_evidence("fundamentals", _evidence(), client)
     assert op.agent == "fundamentals"
     assert op.stance == "bullish"
     assert op.score == 0.6
+    assert not hasattr(op, "reasoning")  # scratchpad stripped, not on the model
 
 
 def test_judge_degrades_to_neutral_on_bad_output(tmp_path):

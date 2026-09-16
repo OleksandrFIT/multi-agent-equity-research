@@ -45,7 +45,8 @@ def test_prompt_has_scoring_rubric_and_example():
 
 
 def test_schema_has_required_fields():
-    assert set(OPINION_SCHEMA["required"]) == {"stance", "score", "confidence", "rationale", "key_facts"}
+    assert set(OPINION_SCHEMA["required"]) == {"reasoning", "stance", "score", "confidence", "rationale", "key_facts"}
+    assert list(OPINION_SCHEMA["properties"]).index("reasoning") == 0  # reasoning generated first (CoT)
 
 
 def test_prompt_includes_data_quality_notes():
@@ -54,3 +55,15 @@ def test_prompt_includes_data_quality_notes():
     prompt = build_judge_prompt("technical", e)
     assert "Data-quality caveats" in prompt
     assert "price discrepancy" in prompt
+
+
+def test_prompt_has_cot_and_role_rubric_and_examples():
+    e = Evidence(ticker="AAPL", as_of=date(2026, 9, 15), metrics={"pe": 20.0})
+    fund = build_judge_prompt("fundamentals", e)
+    assert "step by step" in fund.lower() and "reasoning" in fund
+    assert "high valuation with weak growth is bearish" in fund.lower()  # fundamentals role rubric
+    tech = build_judge_prompt("technical", e)
+    assert "not direction by itself" in tech.lower()  # technical role rubric
+    sent = build_judge_prompt("sentiment", e)
+    assert "no relevant news" in sent.lower()  # sentiment role rubric
+    assert fund.count('"stance"') >= 3  # at least three few-shot examples

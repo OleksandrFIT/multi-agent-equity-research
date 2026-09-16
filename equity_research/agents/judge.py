@@ -20,6 +20,7 @@ def judge_evidence(agent: str, evidence: Evidence, client: OllamaClient) -> Agen
     prompt = build_judge_prompt(agent, evidence)
     try:
         raw = client.generate_json(prompt, OPINION_SCHEMA)
+        raw.pop("reasoning", None)  # CoT scratchpad; not part of the opinion
         return ground(reconcile_stance(AgentOpinion(agent=agent, **raw)), evidence)
     except Exception:  # invalid JSON after retries, or schema validation failure
         return AgentOpinion(
