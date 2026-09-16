@@ -10,6 +10,8 @@ class Config(BaseModel):
     model: str
     judge_model: str | None = None
     narrative_model: str | None = None
+    pm_enabled: bool = False
+    pm_weight: float = 0.6
     temperature: float
     seed: int
     cache_dir: str

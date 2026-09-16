@@ -59,25 +59,44 @@ class Aggregator:
             )
 
         weights = self.config.normalized_weights([o.agent for o in directional])
-        score = sum(weights[o.agent] * o.score for o in directional)
+        mech_score = sum(weights[o.agent] * o.score for o in directional)
         base_conf = sum(weights[o.agent] * o.confidence for o in directional)
+
+        score, base_confidence, narrative = self._decide(ticker, mech_score, base_conf, directional)
         verdict = "buy" if score >= self.buy_th else "sell" if score <= self.sell_th else "hold"
 
-        confidence = base_conf
+        confidence = base_confidence
         caution = None
         if risk_op is not None:
             rl = risk_op.score
-            confidence = max(0.0, min(1.0, base_conf * (1 - self.config.risk["gate_strength"] * rl)))
+            confidence = max(0.0, min(1.0, base_confidence * (1 - self.config.risk["gate_strength"] * rl)))
             if rl >= self.config.risk["caution_threshold"]:
                 caution = f"Elevated risk (level {rl:.0%}): {risk_op.rationale}"
 
-        narrative = self.client.generate_text(self._narrative_prompt(ticker, verdict, score, directional))
         opinions_out = directional + ([risk_op] if risk_op is not None else [])
         return Verdict(
             ticker=ticker, as_of=as_of, verdict=verdict, score=score,
             confidence=confidence, narrative=narrative, opinions=opinions_out,
             caution=caution, skipped_agents=skipped, skip_reasons=skip_reasons,
         )
+
+    def _decide(self, ticker, mech_score, base_conf, directional):
+        """(score, confidence, narrative): LLM-PM blend when enabled, else mechanical.
+
+        The mechanical score is the deterministic anchor; the PM only shifts it by
+        (1 - pm_weight). Any PM failure falls back to the mechanical path.
+        """
+        if getattr(self.config, "pm_enabled", False):
+            from equity_research.orchestration.portfolio_manager import run_pm
+            try:
+                pm = run_pm(self.client, ticker, mech_score, directional)
+                w = self.config.pm_weight
+                return (w * mech_score + (1 - w) * pm["score"], pm["confidence"], pm["narrative"])
+            except Exception:
+                pass  # PM unavailable/invalid -> mechanical fallback
+        mech_verdict = "buy" if mech_score >= self.buy_th else "sell" if mech_score <= self.sell_th else "hold"
+        narrative = self.client.generate_text(self._narrative_prompt(ticker, mech_verdict, mech_score, directional))
+        return mech_score, base_conf, narrative
 
     def _narrative_prompt(self, ticker, verdict, score, opinions) -> str:
         lines = "\n".join(f"- {o.agent}: {o.stance} (score {o.score}) — {o.rationale}" for o in opinions)

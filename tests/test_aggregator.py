@@ -148,3 +148,34 @@ def test_status_ok_when_price_directional_present():
     verdict = agg.aggregate("AAPL", date(2026, 9, 15), [tech], skipped=[], skip_reasons={})
     assert verdict.status == "ok"
     assert verdict.verdict == "buy"
+
+
+def test_pm_blends_score_and_uses_pm_narrative(tmp_path):
+    import json
+
+    cfg = _cfg()
+    cfg.pm_enabled = True
+    cfg.pm_weight = 0.5
+    payload = json.dumps({"reasoning": "trend wins", "score": 1.0, "confidence": 0.9,
+                          "narrative": "PM says buy."})
+    client = OllamaClient(model="m", cache=DiskCache(tmp_path), seed=1, temperature=0.0,
+                          chat_fn=lambda **k: {"message": {"content": payload}})
+    agg = Aggregator(cfg, client)
+    ops = [AgentOpinion(agent="fundamentals", stance="bearish", score=-0.4, confidence=0.5, rationale="r")]
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
+    # mech = -0.4 (single fundamentals, weight -> 1.0); blend 0.5*-0.4 + 0.5*1.0 = 0.3
+    assert abs(v.score - 0.3) < 1e-9
+    assert v.verdict == "buy"
+    assert v.narrative == "PM says buy."
+
+
+def test_pm_failure_falls_back_to_mechanical(tmp_path):
+    cfg = _cfg()
+    cfg.pm_enabled = True
+    client = OllamaClient(model="m", cache=DiskCache(tmp_path), seed=1, temperature=0.0,
+                          chat_fn=lambda **k: {"message": {"content": "not json"}}, max_retries=1)
+    agg = Aggregator(cfg, client)
+    ops = [AgentOpinion(agent="fundamentals", stance="bullish", score=0.8, confidence=0.9, rationale="r")]
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
+    assert abs(v.score - 0.8) < 1e-9   # mechanical fallback
+    assert v.verdict == "buy"

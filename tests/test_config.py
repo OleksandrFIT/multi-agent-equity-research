@@ -68,3 +68,12 @@ def test_role_models_default_to_none():
                  edgar_user_agent="x", weights={"fundamentals": 1})
     assert cfg.judge_model is None and cfg.narrative_model is None
     assert (cfg.judge_model or cfg.model) == "qwen2.5:7b"
+
+
+def test_pm_config_defaults_off():
+    from equity_research.config import Config
+
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".c",
+                 edgar_user_agent="x", weights={"fundamentals": 1})
+    assert cfg.pm_enabled is False
+    assert cfg.pm_weight == 0.6
