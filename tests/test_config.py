@@ -59,3 +59,12 @@ def test_config_has_backtest_defaults():
     assert cfg.backtest["horizons"] == [21, 63]
     assert len(cfg.backtest["universe"]) >= 1
     assert cfg.backtest["report_path"].endswith(".md")
+
+
+def test_role_models_default_to_none():
+    from equity_research.config import Config
+
+    cfg = Config(model="qwen2.5:7b", temperature=0.0, seed=1, cache_dir=".c",
+                 edgar_user_agent="x", weights={"fundamentals": 1})
+    assert cfg.judge_model is None and cfg.narrative_model is None
+    assert (cfg.judge_model or cfg.model) == "qwen2.5:7b"

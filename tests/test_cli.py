@@ -136,7 +136,10 @@ def test_backtest_builder_excludes_sentiment(monkeypatch):
     cfg = Config.load("config.yaml")
 
     class FakeClient:
-        pass
+        cache = None
+        seed = 1
+        temperature = 0.0
+        chat_fn = staticmethod(lambda **k: {"message": {"content": "{}"}})
 
     run_verdict = cli_module.build_backtest_verdict(cfg, FakeClient())
     run_verdict("AAPL", date(2024, 3, 15))

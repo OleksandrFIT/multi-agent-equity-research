@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 
 class Config(BaseModel):
     model: str
+    judge_model: str | None = None
+    narrative_model: str | None = None
     temperature: float
     seed: int
     cache_dir: str
