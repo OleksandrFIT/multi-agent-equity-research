@@ -13,6 +13,9 @@ class Config(BaseModel):
     pm_enabled: bool = False
     pm_weight: float = 0.6
     self_critique_enabled: bool = False
+    calibration_enabled: bool = False
+    calibration_path: str = "calibration.json"
+    calibration_horizon: int = 21
     temperature: float
     seed: int
     cache_dir: str
