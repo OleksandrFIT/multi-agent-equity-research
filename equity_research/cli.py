@@ -106,7 +106,11 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
     unknown = _unknown_ticker_verdict(prices, ticker, as_of)
     if unknown is not None:
         return unknown
-    orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client))
+    critic = None
+    if cfg.self_critique_enabled:
+        from equity_research.agents.critic import make_critic
+        critic = make_critic(judge_client)
+    orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client), critic=critic)
     return orch.run(ticker, as_of, on_event=on_event)
 
 
@@ -149,7 +153,11 @@ def build_backtest_verdict(cfg: Config, client):
             TechnicalAgent(prices=prices, client=judge_client),
             RiskAgent(prices=prices, client=judge_client, benchmark=cfg.benchmark, risk_cfg=cfg.risk),
         ]
-        return Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client)).run(ticker, as_of)
+        critic = None
+        if cfg.self_critique_enabled:
+            from equity_research.agents.critic import make_critic
+            critic = make_critic(judge_client)
+        return Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client), critic=critic).run(ticker, as_of)
 
     return run_verdict
 

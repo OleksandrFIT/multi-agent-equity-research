@@ -19,6 +19,7 @@ class AgentOpinion(BaseModel):
     key_facts: list[str] = Field(default_factory=list)
     dropped_facts: list[str] = Field(default_factory=list)
     metrics: dict[str, float] = Field(default_factory=dict)
+    critique: str | None = None
 
 
 class Agent(Protocol):

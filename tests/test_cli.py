@@ -28,7 +28,7 @@ def test_analyze_ticker_includes_risk_agent(monkeypatch):
     captured = {}
 
     class FakeOrch:
-        def __init__(self, agents, aggregator):
+        def __init__(self, agents, aggregator, critic=None):
             captured["agents"] = agents
 
         def run(self, ticker, as_of, on_event=None):
@@ -48,7 +48,7 @@ def test_analyze_ticker_wraps_fetchers_resiliently(monkeypatch):
     captured = {}
 
     class FakeOrch:
-        def __init__(self, agents, aggregator):
+        def __init__(self, agents, aggregator, critic=None):
             captured["agents"] = agents
 
         def run(self, ticker, as_of, on_event=None):
@@ -83,7 +83,7 @@ def test_analyze_ticker_includes_sentiment_agent(monkeypatch):
     captured = {}
 
     class FakeOrch:
-        def __init__(self, agents, aggregator):
+        def __init__(self, agents, aggregator, critic=None):
             captured["agents"] = agents
 
         def run(self, ticker, as_of, on_event=None):
@@ -102,7 +102,7 @@ def test_analyze_ticker_fundamentals_has_filing_retriever(monkeypatch):
     captured = {}
 
     class FakeOrch:
-        def __init__(self, agents, aggregator):
+        def __init__(self, agents, aggregator, critic=None):
             captured["agents"] = agents
 
         def run(self, ticker, as_of, on_event=None):
@@ -124,7 +124,7 @@ def test_backtest_builder_excludes_sentiment(monkeypatch):
     captured = {}
 
     class FakeOrch:
-        def __init__(self, agents, aggregator):
+        def __init__(self, agents, aggregator, critic=None):
             captured["agents"] = [a.name for a in agents]
 
         def run(self, ticker, as_of):

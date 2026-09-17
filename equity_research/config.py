@@ -12,6 +12,7 @@ class Config(BaseModel):
     narrative_model: str | None = None
     pm_enabled: bool = False
     pm_weight: float = 0.6
+    self_critique_enabled: bool = False
     temperature: float
     seed: int
     cache_dir: str
