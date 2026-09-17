@@ -179,3 +179,25 @@ def test_pm_failure_falls_back_to_mechanical(tmp_path):
     v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
     assert abs(v.score - 0.8) < 1e-9   # mechanical fallback
     assert v.verdict == "buy"
+
+
+def test_calibration_tempers_sell_confidence(tmp_path):
+    cfg = _cfg()
+    calib = {"21": {"buy": 0.62, "sell": 0.14}}
+    agg = Aggregator(cfg, _client(tmp_path), calibration=calib)
+    ops = [AgentOpinion(agent="fundamentals", stance="bearish", score=-0.8, confidence=0.9, rationale="r")]
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
+    assert v.verdict == "sell"
+    assert abs(v.confidence - 0.9 * 0.28) < 1e-9   # tempered by min(1, 2*0.14)
+    assert v.calibration_note is not None
+
+
+def test_calibration_no_op_for_buy_above_threshold(tmp_path):
+    cfg = _cfg()
+    calib = {"21": {"buy": 0.62, "sell": 0.14}}
+    agg = Aggregator(cfg, _client(tmp_path), calibration=calib)
+    ops = [AgentOpinion(agent="fundamentals", stance="bullish", score=0.8, confidence=0.9, rationale="r")]
+    v = agg.aggregate("AAPL", date(2026, 9, 15), ops, skipped=[])
+    assert v.verdict == "buy"
+    assert abs(v.confidence - 0.9) < 1e-9   # buy hit >= 50% -> untouched
+    assert v.calibration_note is None
