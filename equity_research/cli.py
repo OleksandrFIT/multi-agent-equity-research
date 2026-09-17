@@ -110,7 +110,14 @@ def analyze_ticker(ticker: str, as_of: date, cfg_path: str, on_event=None) -> Ve
     if cfg.self_critique_enabled:
         from equity_research.agents.critic import make_critic
         critic = make_critic(judge_client)
-    orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client), critic=critic)
+    calibration = None
+    if cfg.calibration_enabled:
+        import json
+        from pathlib import Path
+        p = Path(cfg.calibration_path)
+        if p.exists():
+            calibration = json.loads(p.read_text())
+    orch = Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client, calibration=calibration), critic=critic)
     return orch.run(ticker, as_of, on_event=on_event)
 
 
@@ -157,6 +164,8 @@ def build_backtest_verdict(cfg: Config, client):
         if cfg.self_critique_enabled:
             from equity_research.agents.critic import make_critic
             critic = make_critic(judge_client)
+        # No calibration here: the backtest is the raw measurement calibration is derived from
+        # (calibrating it would be circular), and confidence is not used by the IC metrics anyway.
         return Orchestrator(agents=agents, aggregator=Aggregator(cfg, narrative_client), critic=critic).run(ticker, as_of)
 
     return run_verdict

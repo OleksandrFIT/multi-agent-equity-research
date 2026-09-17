@@ -2,6 +2,7 @@ model: qwen2.5:7b
 pm_enabled: true
 pm_weight: 0.6
 self_critique_enabled: true
+calibration_enabled: true
 temperature: 0.0
 seed: 7
 cache_dir: .cache
