@@ -29,16 +29,18 @@ class Verdict(BaseModel):
     opinions: list[AgentOpinion]
     disclaimer: str = DISCLAIMER
     caution: str | None = None
+    calibration_note: str | None = None
     skipped_agents: list[str] = []
     skip_reasons: dict[str, str] = {}
 
 
 class Aggregator:
-    def __init__(self, config: Config, client: OllamaClient, buy_th: float = 0.2, sell_th: float = -0.2):
+    def __init__(self, config: Config, client: OllamaClient, buy_th: float = 0.2, sell_th: float = -0.2, calibration: dict | None = None):
         self.config = config
         self.client = client
         self.buy_th = buy_th
         self.sell_th = sell_th
+        self.calibration = calibration
 
     def aggregate(self, ticker: str, as_of: date, opinions: list[AgentOpinion], skipped: list[str],
                   skip_reasons: dict[str, str] | None = None) -> Verdict:
@@ -73,11 +75,19 @@ class Aggregator:
             if rl >= self.config.risk["caution_threshold"]:
                 caution = f"Elevated risk (level {rl:.0%}): {risk_op.rationale}"
 
+        calibration_note = None
+        if self.calibration is not None:
+            from equity_research.eval.calibration import calibration_factor
+            factor = calibration_factor(self.calibration, verdict, self.config.calibration_horizon)
+            if factor < 1.0:
+                confidence = confidence * factor
+                calibration_note = f"Confidence tempered ×{factor:.2f} by historical {verdict} accuracy"
+
         opinions_out = directional + ([risk_op] if risk_op is not None else [])
         return Verdict(
             ticker=ticker, as_of=as_of, verdict=verdict, score=score,
             confidence=confidence, narrative=narrative, opinions=opinions_out,
-            caution=caution, skipped_agents=skipped, skip_reasons=skip_reasons,
+            caution=caution, calibration_note=calibration_note, skipped_agents=skipped, skip_reasons=skip_reasons,
         )
 
     def _decide(self, ticker, mech_score, base_conf, directional):

@@ -85,3 +85,13 @@ def test_self_critique_defaults_off():
     cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".c",
                  edgar_user_agent="x", weights={"fundamentals": 1})
     assert cfg.self_critique_enabled is False
+
+
+def test_calibration_config_defaults():
+    from equity_research.config import Config
+
+    cfg = Config(model="m", temperature=0.0, seed=1, cache_dir=".c",
+                 edgar_user_agent="x", weights={"fundamentals": 1})
+    assert cfg.calibration_enabled is False
+    assert cfg.calibration_path == "calibration.json"
+    assert cfg.calibration_horizon == 21
