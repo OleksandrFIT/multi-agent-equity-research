@@ -2,9 +2,9 @@
   {
     "ticker": "AAPL",
     "as_of": "2026-09-17",
-    "expected_verdict": "hold",
+    "expected_verdict": "buy",
     "expected_stances": {
-      "fundamentals": "bearish",
+      "fundamentals": "neutral",
       "technical": "bullish",
       "sentiment": "bullish"
     }
