@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
-    def __init__(self, agents: list[Agent], aggregator: Aggregator):
+    def __init__(self, agents: list[Agent], aggregator: Aggregator, critic=None):
         self.agents = agents
         self.aggregator = aggregator
+        self.critic = critic
 
     def run(self, ticker: str, as_of: date, on_event=None) -> Verdict:
         opinions: list[AgentOpinion] = []
@@ -23,6 +24,8 @@ class Orchestrator:
             try:
                 evidence = agent.gather(ticker, as_of)
                 opinion = agent.judge(evidence)
+                if self.critic is not None:
+                    opinion = self.critic(agent.name, evidence, opinion)
                 opinion.metrics = {
                     k: float(v) for k, v in evidence.metrics.items()
                     if isinstance(v, (int, float)) and math.isfinite(v)

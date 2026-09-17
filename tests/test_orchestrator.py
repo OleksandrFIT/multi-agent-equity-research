@@ -102,3 +102,38 @@ def test_orchestrator_surfaces_agent_metrics_and_drops_nan():
     op = captured["fundamentals"]
     assert op.metrics == {"pe": 20.0}
     assert verdict.opinions[0].metrics == {"pe": 20.0}
+
+
+def test_orchestrator_applies_critic():
+    from datetime import date
+
+    from equity_research.agents.base import AgentOpinion
+    from equity_research.data.models import Evidence
+    from equity_research.orchestration.aggregator import Verdict
+    from equity_research.orchestration.orchestrator import Orchestrator
+
+    class StubAgent:
+        name = "fundamentals"
+        def gather(self, ticker, as_of):
+            return Evidence(ticker=ticker, as_of=as_of, metrics={"pe": 30.0})
+        def judge(self, evidence):
+            return AgentOpinion(agent="fundamentals", stance="bullish", score=0.5,
+                                confidence=0.9, rationale="r")
+
+    def critic(agent, evidence, opinion):
+        return opinion.model_copy(update={"confidence": 0.3, "critique": "weak"})
+
+    captured = {}
+    def on_event(ev):
+        if "opinion" in ev:
+            captured[ev["agent"]] = ev["opinion"]
+
+    class StubAgg:
+        def aggregate(self, ticker, as_of, opinions, skipped, skip_reasons):
+            return Verdict(ticker=ticker, as_of=as_of, verdict="buy", score=0.5,
+                           confidence=0.3, narrative="n", opinions=opinions)
+
+    orch = Orchestrator([StubAgent()], StubAgg(), critic=critic)
+    orch.run("AAPL", date(2026, 9, 15), on_event=on_event)
+    op = captured["fundamentals"]
+    assert op.confidence == 0.3 and op.critique == "weak"
