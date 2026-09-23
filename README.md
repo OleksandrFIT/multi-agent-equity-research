@@ -8,7 +8,9 @@
 A multi-agent equity analysis system — a "mini hedge fund" that runs a panel of specialised LLM
 analyst agents over a stock, reconciles their views into a single **buy / hold / sell** verdict, and
 ships with an **evaluation harness** that measures whether those verdicts have any predictive value.
-Runs fully locally on an open-weights model via Ollama; **no paid APIs**.
+Runs fully locally on an open-weights model via Ollama; **no paid APIs**. The LLM client is
+**provider-agnostic by design** — a hosted model (OpenAI, Anthropic, …) can be wired behind the same
+interface (see [LLM backend](#llm-backend)).
 
 Built for **correctness over hype**: point-in-time data (no look-ahead), reproducible LLM output,
 grounded facts, and a backtest that reports the system's information coefficient plainly — including
@@ -238,6 +240,18 @@ network timeouts/retries, the backtest universe/dates, and the SEC `edgar_user_a
 | `self_critique_enabled` | critic pass that can only lower confidence |
 | `calibration_enabled`, `calibration_horizon` | temper confidence by measured hit-rate |
 | `weights`, `risk.*`, `rag.*`, `net.*`, `backtest.*` | agent weights, gate, retrieval, retries, eval window |
+
+### LLM backend
+
+The core is **not tied to a specific provider**. `OllamaClient` is constructed with an injected
+`chat_fn` and a model name, and `judge_model` / `narrative_model` already let you route different
+roles to different models. Wiring a hosted backend (OpenAI, Anthropic, Azure OpenAI) is therefore an
+adapter, not a rewrite: supply a `chat_fn` that returns the same message shape and maps the structured
+-output call (Ollama's grammar-constrained `format=schema` → the provider's JSON-schema / tool mode).
+
+**Status:** only the local **Ollama** backend is implemented and tested (all results above are on
+`qwen2.5:7b`). Hosted providers — and a cross-provider backtest comparison — are on the
+[roadmap](#roadmap); they are not claimed to work until that lands.
 
 ---
 
